@@ -86,7 +86,7 @@ module Decode = struct
       data_len : int;
       data_blocks : bytes array;
       mutable unsolved_data_blocks : Int_set.t;
-      drops : Drop.t option array;
+      drops : bytes option array;
       data_edges : bucket array;
       drop_edges : bucket array;
     }
@@ -136,7 +136,7 @@ module Decode = struct
               Drop_set.iter
                 (fun drop ->
                   let drop_index = Drop.index drop in
-                  drops.(drop_index) <- Some drop;
+                  drops.(drop_index) <- Some (Drop.data drop);
                   let data_indices =
                     Int_set.of_list @@ get_data_block_indices ctx drop
                   in
@@ -158,29 +158,33 @@ module Decode = struct
                   drop_edges;
                 }
 
+    let degree_of_data ~data_index (g : t) : int =
+      Int_set.cardinal g.data_edges.(data_index)
+
+    let degree_of_drop ~drop_index (g : t) : int =
+      Int_set.cardinal g.drop_edges.(drop_index)
+
     let propagate_data_xor ~data_index (g : t) : unit =
       let data = g.data_blocks.(data_index) in
       Int_set.iter
         (fun drop_index ->
-          Utils.xor_onto ~src:data
-            ~onto:(Drop.data @@ Option.get g.drops.(drop_index)))
+          Utils.xor_onto ~src:data ~onto:(Option.get g.drops.(drop_index)))
         g.data_edges.(data_index)
 
-    let kick_start_with_degree_1_drops (g : t) : error option =
+    let process_degree_1_drops (g : t) : error option =
       let degree_1_found = ref false in
-      Array.iter
-        (fun drop ->
+      Array.iteri
+        (fun drop_index drop ->
           match drop with
           | None -> ()
-          | Some drop ->
-              if Drop.degree drop = 1 then (
+          | Some drop_data ->
+              if degree_of_drop ~drop_index g = 1 then (
                 degree_1_found := true;
-                let drop_index = Drop.index drop in
                 let data_index = Int_set.choose g.drop_edges.(drop_index) in
-                Bytes.blit (Drop.data drop) 0 g.data_blocks.(data_index) 0
-                  g.data_len;
+                Bytes.blit drop_data 0 g.data_blocks.(data_index) 0 g.data_len;
                 g.unsolved_data_blocks <-
-                  Int_set.remove data_index g.unsolved_data_blocks))
+                  Int_set.remove data_index g.unsolved_data_blocks;
+                propagate_data_xor ~data_index g))
         g.drops;
       if !degree_1_found then None else Some `Insufficient_drops
   end
