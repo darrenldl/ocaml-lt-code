@@ -23,12 +23,6 @@ let make_exn ~index ~degree ~data : t =
   | Ok x -> x
   | Error e -> raise (Error_exn e)
 
-let lt x y = x.index < y.index
-
-let equal x y = x.index = y.index
-
-let compare x y = if lt x y then -1 else if equal x y then 0 else 1
-
 let index t = t.index
 
 let degree t = t.degree

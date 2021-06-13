@@ -74,6 +74,7 @@ end
 module Decode = struct
   type error =
     [ `Inconsistent_drop_size
+    | `Invalid_drop_index
     | `Invalid_drop_count
     | `Insufficient_drops
     | `Invalid_data_block_buffer
@@ -99,8 +100,15 @@ module Decode = struct
 
     let make ?(data_block_buffer : bytes array option) (ctx : Ctx.t)
         (available_drops : Drop_set.t) : (t, error) result =
-      if Drop_set.cardinal available_drops <> Ctx.drop_count ctx then
+      let drop_count = Ctx.drop_count ctx in
+      if Drop_set.cardinal available_drops > drop_count then
         Error `Invalid_drop_count
+      else if
+        not
+          (Drop_set.for_all
+             (fun x -> Drop.index x < drop_count)
+             available_drops)
+      then Error `Invalid_drop_index
       else
         let drop_size =
           Bytes.length (Drop.data @@ Drop_set.choose available_drops)
@@ -129,7 +137,6 @@ module Decode = struct
           | Error e -> Error e
           | Ok data_blocks ->
               let data_block_count = Ctx.data_block_count ctx in
-              let drop_count = Ctx.drop_count ctx in
               let drops = Array.make drop_count None in
               let data_edges = Array.make data_block_count Int_set.empty in
               let drop_edges = Array.make drop_count Int_set.empty in
@@ -168,10 +175,17 @@ module Decode = struct
       let data = g.data_blocks.(data_index) in
       Int_set.iter
         (fun drop_index ->
-          Utils.xor_onto ~src:data ~onto:(Option.get g.drops.(drop_index)))
+          Utils.xor_onto ~src:data ~onto:(Option.get g.drops.(drop_index));
+          g.drop_edges.(drop_index) <-
+            Int_set.remove data_index g.drop_edges.(drop_index))
         g.data_edges.(data_index)
 
-    let process_degree_1_drops (g : t) : error option =
+    type reduction_res =
+      | Success
+      | Ongoing
+      | Insufficient_drops
+
+    let reduce_single_step (g : t) : reduction_res =
       let degree_1_found = ref false in
       Array.iteri
         (fun drop_index drop ->
@@ -186,19 +200,24 @@ module Decode = struct
                   Int_set.remove data_index g.unsolved_data_blocks;
                 propagate_data_xor ~data_index g))
         g.drops;
-      if !degree_1_found then None else Some `Insufficient_drops
+      if !degree_1_found then Ongoing
+      else if Int_set.is_empty g.unsolved_data_blocks then Success
+      else Insufficient_drops
+
+    let reduce (g : t) : error option =
+      let rec aux g =
+        match reduce_single_step g with
+        | Success -> None
+        | Ongoing -> aux g
+        | Insufficient_drops -> Some `Insufficient_drops
+      in
+      aux g
   end
 
-  let decode (ctx : Ctx.t) (drops : Drop_set.t) : (bytes array, error) result =
-    if Drop_set.cardinal drops <> Ctx.drop_count ctx then
-      Error `Invalid_drop_count
-    else
-      let drop_size = Bytes.length (Drop.data @@ Drop_set.choose drops) in
-      if
-        not
-          (Drop_set.for_all
-             (fun x -> Bytes.length (Drop.data x) = drop_size)
-             drops)
-      then Error `Inconsistent_drop_size
-      else failwith "Unimplemented"
+  let decode ?data_block_buffer (ctx : Ctx.t) (drops : Drop_set.t) :
+      (bytes array, error) result =
+    match Graph.make ?data_block_buffer ctx drops with
+    | Error e -> Error e
+    | Ok g -> (
+        match Graph.reduce g with Some e -> Error e | None -> Ok g.data_blocks)
 end
