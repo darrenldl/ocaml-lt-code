@@ -16,6 +16,8 @@ let data_block_count t = t.data_block_count
 let drop_count t = t.drop_count
 
 let make ~systematic ~data_block_count ~drop_count : (t, error) result =
-  if data_block_count <= 0 || data_block_count >= Constants.max_index then Error `Invalid_data_block_count
-  else if drop_count < data_block_count || drop_count >= Constants.max_index then Error `Invalid_drop_count
+  if data_block_count <= 0 || data_block_count >= Constants.max_index then
+    Error `Invalid_data_block_count
+  else if drop_count < data_block_count || drop_count >= Constants.max_index
+  then Error `Invalid_drop_count
   else Ok { systematic; data_block_count; drop_count }
