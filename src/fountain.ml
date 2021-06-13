@@ -24,7 +24,7 @@ module Encode = struct
     let data_block_count = Ctx.data_block_count ctx in
     let data_block_count_int = Ctx.data_block_count ctx in
     let drop_count = Ctx.drop_count ctx in
-    let degrees = Array.make 0 drop_count in
+    let degrees = Array.make drop_count 0 in
     (* fix first drop to be degree 1 to ensure decoding is at least possible *)
     degrees.(0) <- 1;
     Random.self_init ();
@@ -195,10 +195,11 @@ module Decode = struct
               if degree_of_drop ~drop_index g = 1 then (
                 degree_1_found := true;
                 let data_index = Int_set.choose g.drop_edges.(drop_index) in
-                Bytes.blit drop_data 0 g.data_blocks.(data_index) 0 g.data_len;
-                g.unsolved_data_blocks <-
-                  Int_set.remove data_index g.unsolved_data_blocks;
-                propagate_data_xor ~data_index g))
+                if Int_set.mem data_index g.unsolved_data_blocks then (
+                  Utils.xor_onto ~src:drop_data ~onto:g.data_blocks.(data_index);
+                  g.unsolved_data_blocks <-
+                    Int_set.remove data_index g.unsolved_data_blocks;
+                  propagate_data_xor ~data_index g)))
         g.drops;
       if !degree_1_found then Ongoing
       else if Int_set.is_empty g.unsolved_data_blocks then Success
