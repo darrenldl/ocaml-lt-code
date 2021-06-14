@@ -1,5 +1,5 @@
-# ofountain
-OCaml Luby transform code
+# Ofountain
+OCaml implementation of Luby transform code
 
 ## License
 
