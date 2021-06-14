@@ -62,7 +62,9 @@ module Encode = struct
                 Array.length buffer = Ctx.drop_count ctx
                 && Cstruct.length buffer.(0) = Cstruct.length data_blocks.(0)
                 && Utils.cstruct_array_is_consistent buffer
-              then Ok buffer
+              then (
+                Utils.zero_cstruct_array buffer;
+                Ok buffer)
               else Error `Invalid_drop_data_buffer
         in
         match data_buffer with
@@ -148,7 +150,9 @@ module Decode = struct
                   Array.length buffer = Ctx.data_block_count ctx
                   && Cstruct.length buffer.(0) = drop_size
                   && Utils.cstruct_array_is_consistent buffer
-                then Ok buffer
+                then (
+                  Utils.zero_cstruct_array buffer;
+                  Ok buffer)
                 else Error `Invalid_data_block_buffer
           in
           match data_blocks with

@@ -1,3 +1,8 @@
+let zero_cstruct (x : Cstruct.t) : unit = Cstruct.memset x 0
+
+let zero_cstruct_array (arr : Cstruct.t array) : unit =
+  Array.iter zero_cstruct arr
+
 let xor_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
   assert (Cstruct.length src = Cstruct.length onto);
   let get_uint64 = Cstruct.LE.get_uint64 in
