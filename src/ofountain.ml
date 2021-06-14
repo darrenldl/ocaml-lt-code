@@ -242,6 +242,8 @@ type encode_error = Encode.error
 
 let encode = Encode.encode
 
+let encode_with_ctx = Encode.encode_with_ctx
+
 type decode_error = Decode.error
 
 let decode = Decode.decode
