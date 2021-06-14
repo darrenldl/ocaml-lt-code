@@ -3,8 +3,8 @@ module Qc = struct
     QCheck.Test.make ~count:10_000 ~name:"encode_decode_systematic_no_erasure"
       QCheck.(
         pair
-          (array_of_size (Gen.int_range 1 10) (string_of_size (Gen.return 10)))
-          (int_bound 20))
+          (array_of_size (Gen.int_range 1 50) (string_of_size (Gen.return 10)))
+          (int_bound 70))
       (fun (data_blocks, drop_count_offset) ->
         QCheck.assume (Array.length data_blocks > 0);
         QCheck.assume (Array.for_all (fun x -> String.length x > 0) data_blocks);
