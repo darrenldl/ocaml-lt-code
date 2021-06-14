@@ -44,7 +44,9 @@ module Encode = struct
       let data_block_len = Cstruct.length data_blocks.(0) in
       if
         not
-          (Array.for_all (fun x -> Cstruct.length x = data_block_len) data_blocks)
+          (Array.for_all
+             (fun x -> Cstruct.length x = data_block_len)
+             data_blocks)
       then Error `Inconsistent_data_block_size
       else
         let degrees = gen_degrees_uniform ctx in
@@ -66,8 +68,8 @@ module Encode = struct
     match Ctx.make ~systematic ~data_block_count ~drop_count with
     | Error e -> (
         match e with
-        | `Invalid_data_block_count
-        | `Invalid_drop_count as e -> Error (e :> error))
+        | (`Invalid_data_block_count | `Invalid_drop_count) as e ->
+            Error (e :> error))
     | Ok ctx -> (
         match encode_with_ctx ctx data_blocks with
         | Error e -> Error e
@@ -126,7 +128,9 @@ module Decode = struct
             | Some buffer ->
                 if
                   Array.length buffer = Ctx.data_block_count ctx
-                  && Array.for_all (fun b -> Cstruct.length b = drop_size) buffer
+                  && Array.for_all
+                       (fun b -> Cstruct.length b = drop_size)
+                       buffer
                 then Ok buffer
                 else Error `Invalid_data_block_buffer
           in
@@ -216,9 +220,9 @@ module Decode = struct
         match Graph.reduce g with Some e -> Error e | None -> Ok g.data_blocks)
 end
 
-    let max_drop_count = Constants.max_drop_count
+let max_drop_count = Constants.max_drop_count
 
-    let max_data_block_count = Constants.max_data_block_count
+let max_data_block_count = Constants.max_data_block_count
 
 type encode_error = Encode.error
 
@@ -227,4 +231,3 @@ let encode = Encode.encode
 type decode_error = Decode.error
 
 let decode = Decode.decode
-
