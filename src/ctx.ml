@@ -25,9 +25,9 @@ let make_unsolved_data_blocks ~data_block_count : Int_set.t =
   aux 0 Int_set.empty
 
 let make ~systematic ~data_block_count ~drop_count : (t, error) result =
-  if data_block_count <= 0 || data_block_count >= Constants.max_index then
+  if data_block_count <= 0 || data_block_count >= Constants.max_data_block_count then
     Error `Invalid_data_block_count
-  else if drop_count < data_block_count || drop_count >= Constants.max_index
+  else if drop_count < data_block_count || drop_count >= Constants.max_drop_count
   then Error `Invalid_drop_count
   else
     Ok

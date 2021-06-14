@@ -1,7 +1,9 @@
 module Qc = struct
   let encode_decode =
-    QCheck.Test.make ~count:100_000 ~name:"encode_decode" QCheck.(triple bool (array_of_size (Gen.int_bound 10_000) (string_of_size (Gen.return 1_024))) (int_bound 20_000))
+    QCheck.Test.make ~count:10 ~name:"encode_decode"
+    QCheck.(triple bool (array_of_size (Gen.int_range 1 100) (string_of_size (Gen.return 10))) (int_bound 200))
     (fun (systematic, data_blocks, drop_count_offset) ->
+      QCheck.assume (Array.length data_blocks > 0);
       let data_blocks = Array.map Bytes.of_string data_blocks in
       let drop_count = Array.length data_blocks + drop_count_offset in
       match Ofountain.encode ~systematic ~drop_count data_blocks with
@@ -18,7 +20,7 @@ module Qc = struct
                 (0, false)
                 data_blocks'
                   in
-                  has_mismatch
+                  not has_mismatch
     )
 end
 

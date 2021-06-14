@@ -1,3 +1,7 @@
+val max_data_block_count : int
+
+val max_drop_count : int
+
 module Ctx : sig
   type t
 

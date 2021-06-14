@@ -26,12 +26,11 @@ module Encode = struct
   let gen_degrees_uniform (ctx : Ctx.t) : int array =
     let systematic = Ctx.systematic ctx in
     let data_block_count = Ctx.data_block_count ctx in
-    let data_block_count_int = Ctx.data_block_count ctx in
     let drop_count = Ctx.drop_count ctx in
     let degrees = Array.make drop_count 0 in
     Random.self_init ();
     for i = 1 to drop_count - 1 do
-      if systematic && i <= data_block_count_int then degrees.(i) <- 1
+      if systematic && i <= data_block_count then degrees.(i) <- 1
       else degrees.(i) <- Random.int data_block_count
     done;
     (* fix a random drop to be degree 1 to ensure decoding is at least possible *)
@@ -67,7 +66,7 @@ module Encode = struct
     match Ctx.make ~systematic ~data_block_count ~drop_count with
     | Error e -> (
         match e with
-        | `Invalid_data_block_count -> failwith "Unexpected case"
+        | `Invalid_data_block_count
         | `Invalid_drop_count as e -> Error (e :> error))
     | Ok ctx -> (
         match encode_with_ctx ctx data_blocks with
@@ -217,6 +216,10 @@ module Decode = struct
         match Graph.reduce g with Some e -> Error e | None -> Ok g.data_blocks)
 end
 
+    let max_drop_count = Constants.max_drop_count
+
+    let max_data_block_count = Constants.max_data_block_count
+
 type encode_error = Encode.error
 
 let encode = Encode.encode
@@ -224,3 +227,4 @@ let encode = Encode.encode
 type decode_error = Decode.error
 
 let decode = Decode.decode
+
