@@ -1,7 +1,7 @@
 type t = {
   index : int;
   degree : int;
-  data : bytes;
+  data : Cstruct.t;
 }
 
 type error =
@@ -15,7 +15,7 @@ exception Error_exn of error
 let make ~index ~degree ~data : (t, error) result =
   if index < 0 || index > Constants.max_index then Error `Invalid_index
   else if degree < 0 || degree >= Constants.max_data_block_count then Error `Invalid_degree
-  else if Bytes.length data = 0 then Error `Invalid_data
+  else if Cstruct.length data = 0 then Error `Invalid_data
   else Ok { index; degree; data }
 
 let make_exn ~index ~degree ~data : t =

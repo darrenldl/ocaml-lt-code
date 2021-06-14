@@ -5,7 +5,7 @@ module Qc = struct
     (fun (data_blocks, drop_count_offset) ->
       QCheck.assume (Array.length data_blocks > 0);
       QCheck.assume (Array.for_all (fun x -> String.length x > 0) data_blocks);
-      let data_blocks = Array.map Bytes.of_string data_blocks in
+      let data_blocks = Array.map Cstruct.of_string data_blocks in
       let drop_count = Array.length data_blocks + drop_count_offset in
       match Ofountain.encode ~systematic:true ~drop_count data_blocks with
       | Error _ -> false
@@ -15,7 +15,7 @@ module Qc = struct
           | Ok data_blocks' ->
               let (_, has_mismatch) =
                 Array.fold_left (fun (i, has_mismatch) data' ->
-                  let has_mismatch = has_mismatch || not (Bytes.equal data' data_blocks.(i)) in
+                  let has_mismatch = has_mismatch || not (Cstruct.equal data' data_blocks.(i)) in
                   (succ i, has_mismatch)
                   )
                 (0, false)

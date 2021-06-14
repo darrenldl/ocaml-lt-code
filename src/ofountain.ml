@@ -41,17 +41,17 @@ module Encode = struct
     if Array.length data_blocks <> Ctx.data_block_count ctx then
       Error `Invalid_data_block_count
     else
-      let data_block_len = Bytes.length data_blocks.(0) in
+      let data_block_len = Cstruct.length data_blocks.(0) in
       if
         not
-          (Array.for_all (fun x -> Bytes.length x = data_block_len) data_blocks)
+          (Array.for_all (fun x -> Cstruct.length x = data_block_len) data_blocks)
       then Error `Inconsistent_data_block_size
       else
         let degrees = gen_degrees_uniform ctx in
         let drops =
           Array.init (Ctx.drop_count ctx) (fun index ->
               let degree = degrees.(index) in
-              let data = Bytes.make data_block_len '\x00' in
+              let data = Cstruct.create data_block_len in
               let drop = Drop.make_exn ~index ~degree ~data in
               List.iter
                 (fun i -> Utils.xor_onto ~src:data_blocks.(i) ~onto:data)
@@ -60,7 +60,7 @@ module Encode = struct
         in
         Ok drops
 
-  let encode ?(systematic = true) ~drop_count (data_blocks : bytes array) :
+  let encode ?(systematic = true) ~drop_count (data_blocks : Cstruct.t array) :
       (Ctx.t * Drop.t array, error) result =
     let data_block_count = Array.length data_blocks in
     match Ctx.make ~systematic ~data_block_count ~drop_count with
@@ -88,14 +88,14 @@ module Decode = struct
 
     type t = {
       data_len : int;
-      data_blocks : bytes array;
+      data_blocks : Cstruct.t array;
       mutable unsolved_data_blocks : Int_set.t;
-      drops : bytes option array;
+      drops : Cstruct.t option array;
       data_edges : bucket array;
       drop_edges : bucket array;
     }
 
-    let make ?(data_block_buffer : bytes array option) (ctx : Ctx.t)
+    let make ?(data_block_buffer : Cstruct.t array option) (ctx : Ctx.t)
         (available_drops : Drop_set.t) : (t, error) result =
       let drop_count = Ctx.drop_count ctx in
       if Drop_set.cardinal available_drops > drop_count then
@@ -108,12 +108,12 @@ module Decode = struct
       then Error `Invalid_drop_index
       else
         let drop_size =
-          Bytes.length (Drop.data @@ Drop_set.choose available_drops)
+          Cstruct.length (Drop.data @@ Drop_set.choose available_drops)
         in
         if
           not
             (Drop_set.for_all
-               (fun x -> Bytes.length (Drop.data x) = drop_size)
+               (fun x -> Cstruct.length (Drop.data x) = drop_size)
                available_drops)
         then Error `Inconsistent_drop_size
         else
@@ -122,11 +122,11 @@ module Decode = struct
             | None ->
                 Ok
                   (Array.init (Ctx.data_block_count ctx) (fun _ ->
-                       Bytes.make drop_size '\x00'))
+                       Cstruct.create drop_size))
             | Some buffer ->
                 if
                   Array.length buffer = Ctx.data_block_count ctx
-                  && Array.for_all (fun b -> Bytes.length b = drop_size) buffer
+                  && Array.for_all (fun b -> Cstruct.length b = drop_size) buffer
                 then Ok buffer
                 else Error `Invalid_data_block_buffer
           in
@@ -209,7 +209,7 @@ module Decode = struct
   end
 
   let decode ?data_block_buffer (ctx : Ctx.t) (drops : Drop_set.t) :
-      (bytes array, error) result =
+      (Cstruct.t array, error) result =
     match Graph.make ?data_block_buffer ctx drops with
     | Error e -> Error e
     | Ok g -> (

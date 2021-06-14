@@ -1,19 +1,21 @@
-let xor_onto ~(src : bytes) ~(onto : bytes) : unit =
-  assert (Bytes.length src = Bytes.length onto);
+let xor_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
+  assert (Cstruct.length src = Cstruct.length onto);
+  let get_uint64 = Cstruct.LE.get_uint64 in
+  let set_uint64 = Cstruct.LE.set_uint64 in
   let rec aux i len src onto =
     if i < len - 8 then (
-      let old = Bytes.get_int64_ne onto i in
-      let x = Bytes.get_int64_ne src i in
+      let old = get_uint64 onto i in
+      let x = Cstruct.LE.get_uint64 src i in
       let new_val = Int64.logxor x old in
-      Bytes.set_int64_ne onto i new_val;
+      set_uint64 onto i new_val;
       aux (i + 8) len src onto)
     else if i < len then (
-      let old = Bytes.get_uint8 onto i in
-      let x = Bytes.get_uint8 src i in
+      let old = Cstruct.get_uint8 onto i in
+      let x = Cstruct.get_uint8 src i in
       let new_val = x lxor old in
-      Bytes.set_uint8 onto i new_val;
+      Cstruct.set_uint8 onto i new_val;
       aux (succ i) len src onto)
     else ()
   in
-  let len = Bytes.length src in
+  let len = Cstruct.length src in
   aux 0 len src onto

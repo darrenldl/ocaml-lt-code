@@ -32,15 +32,15 @@ module Drop : sig
     | `Invalid_data
     ]
 
-  val make : index:int -> degree:int -> data:bytes -> (t, error) result
+  val make : index:int -> degree:int -> data:Cstruct.t -> (t, error) result
 
-  val make_exn : index:int -> degree:int -> data:bytes -> t
+  val make_exn : index:int -> degree:int -> data:Cstruct.t -> t
 
   val index : t -> int
 
   val degree : t -> int
 
-  val data : t -> bytes
+  val data : t -> Cstruct.t
 end
 
 module Drop_set : Set.S with type elt = Drop.t
@@ -54,7 +54,7 @@ type encode_error =
 val encode :
   ?systematic:bool ->
   drop_count:int ->
-  bytes array ->
+  Cstruct.t array ->
   (Ctx.t * Drop.t array, encode_error) result
 
 type decode_error =
@@ -66,7 +66,7 @@ type decode_error =
   ]
 
 val decode :
-  ?data_block_buffer:bytes array ->
+  ?data_block_buffer:Cstruct.t array ->
   Ctx.t ->
   Drop_set.t ->
-  (bytes array, decode_error) result
+  (Cstruct.t array, decode_error) result
