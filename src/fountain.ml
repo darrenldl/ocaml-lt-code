@@ -92,12 +92,6 @@ module Decode = struct
       drop_edges : bucket array;
     }
 
-    let make_unsolved_data_blocks ~data_block_count : Int_set.t =
-      let rec aux c (acc : Int_set.t) =
-        if c < data_block_count then aux (succ c) (Int_set.add c acc) else acc
-      in
-      aux 0 Int_set.empty
-
     let make ?(data_block_buffer : bytes array option) (ctx : Ctx.t)
         (available_drops : Drop_set.t) : (t, error) result =
       let drop_count = Ctx.drop_count ctx in
@@ -158,8 +152,7 @@ module Decode = struct
                 {
                   data_len = drop_size;
                   data_blocks;
-                  unsolved_data_blocks =
-                    make_unsolved_data_blocks ~data_block_count;
+                  unsolved_data_blocks = Ctx.unsolved_data_blocks_init ctx;
                   drops;
                   data_edges;
                   drop_edges;
