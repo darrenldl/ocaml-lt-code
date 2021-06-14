@@ -57,13 +57,13 @@ val encode :
   ?drop_data_buffer:Cstruct.t array ->
   drop_count:int ->
   Cstruct.t array ->
-  (Ctx.t * Drop.t array, encode_error) result
+  (Ctx.t * Drop.t Seq.t, encode_error) result
 
 val encode_with_ctx :
   ?drop_data_buffer:Cstruct.t array ->
   Ctx.t ->
   Cstruct.t array ->
-  (Drop.t array, encode_error) result
+  (Drop.t Seq.t, encode_error) result
 
 type decode_error =
   [ `Inconsistent_drop_size

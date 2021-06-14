@@ -42,7 +42,7 @@ module Encode = struct
     degrees
 
   let encode_with_ctx ?(drop_data_buffer : Cstruct.t array option) (ctx : Ctx.t)
-      data_blocks : (Drop.t array, error) result =
+      data_blocks : (Drop.t Seq.t, error) result =
     if Array.length data_blocks <> Ctx.data_block_count ctx then
       Error `Invalid_data_block_count
     else
@@ -70,20 +70,20 @@ module Encode = struct
         match data_buffer with
         | Error e -> Error e
         | Ok data_buffer ->
-            let drops =
-              Array.init (Ctx.drop_count ctx) (fun index ->
+            OSeq.(0 -- Ctx.drop_count ctx)
+        |> Seq.map (fun index ->
                   let degree = degrees.(index) in
                   let data = data_buffer.(index) in
                   let drop = Drop.make_exn ~index ~degree ~data in
                   List.iter
                     (fun i -> Utils.xor_onto ~src:data_blocks.(i) ~onto:data)
                     (get_data_block_indices ctx drop);
-                  drop)
-            in
-            Ok drops
+                  drop
+            )
+        |> Result.ok
 
-  let encode ?(systematic = true) ?drop_data_buffer ~drop_count
-      (data_blocks : Cstruct.t array) : (Ctx.t * Drop.t array, error) result =
+  let encode_lazy ?(systematic = true) ?drop_data_buffer ~drop_count
+      (data_blocks : Cstruct.t array) : (Ctx.t * Drop.t Seq.t, error) result =
     let data_block_count = Array.length data_blocks in
     match Ctx.make ~systematic ~data_block_count ~drop_count with
     | Error e -> (
@@ -94,6 +94,22 @@ module Encode = struct
         match encode_with_ctx ?drop_data_buffer ctx data_blocks with
         | Error e -> Error e
         | Ok drops -> Ok (ctx, drops))
+
+  let encode ?systematic ?drop_data_buffer ~drop_count
+      (data_blocks : Cstruct.t array) : (Ctx.t * Drop.t array, error) result =
+        match encode_lazy ?systematic ?drop_data_buffer ~drop_count data_blocks with
+        | Error e -> Error e
+        | Ok (ctx, s) ->
+            let s = ref s in
+            let arr = Array.init drop_count (fun _ ->
+              match !s () with
+              | Seq.Nil -> failwith "Unexpected"
+              | Seq.Cons (x, s') -> (
+                  s := s';
+                  x
+              )
+        ) in
+            Ok (ctx, arr)
 end
 
 module Decode = struct
@@ -103,6 +119,11 @@ module Decode = struct
     | `Invalid_drop_count
     | `Insufficient_drops
     | `Invalid_data_block_buffer
+    ]
+
+  type status = [
+    | `Success of Cstruct.t array
+    | `Ongoing
     ]
 
   module Graph = struct
