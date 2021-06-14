@@ -154,6 +154,12 @@ module Decode = struct
         drop_edges = Array.make (Param.drop_count param) Int_set.empty;
     }
 
+    let remove_edge ~drop_index ~data_index (g : t) : unit =
+        g.drop_edges.(drop_index) <- 
+          Int_set.remove data_index g.drop_edges.(drop_index);
+        g.data_edges.(data_index) <-
+          Int_set.remove drop_index g.data_edges.(data_index)
+
     let add_drop (drop : Drop.t) (g : t): unit =
       let drop_index = Drop.index drop in
       let data_indices =
@@ -170,9 +176,6 @@ module Decode = struct
     let mark_data_as_solved ~data_index (g : t) : unit =
       g.data_block_is_solved.(data_index) <- true;
       g.data_block_solved_count <- g.data_block_solved_count + 1
-
-    let degree_of_data ~data_index (g : t) : int =
-      Int_set.cardinal g.data_edges.(data_index)
 
     let degree_of_drop ~drop_index (g : t) : int =
       Int_set.cardinal g.drop_edges.(drop_index)
@@ -224,10 +227,7 @@ module Decode = struct
       if ctx.graph.data_block_is_solved.(data_index) then (
         Utils.xor_onto ~src:ctx.data_blocks.(data_index)
         ~onto:(Option.get ctx.drops.(drop_index));
-        ctx.graph.drop_edges.(drop_index) <- 
-          Int_set.remove data_index ctx.graph.drop_edges.(drop_index);
-        ctx.graph.data_edges.(data_index) <-
-          Int_set.remove drop_index ctx.graph.data_edges.(data_index);
+        Graph.remove_edge ~drop_index ~data_index ctx.graph;
       )
     )
     data_indices
@@ -238,8 +238,7 @@ module Decode = struct
       (fun drop_index ->
         Option.iter (fun onto ->
           Utils.xor_onto ~src:data ~onto;
-          ctx.graph.drop_edges.(drop_index) <-
-            Int_set.remove data_index ctx.graph.drop_edges.(drop_index);
+          Graph.remove_edge ~drop_index ~data_index ctx.graph;
             )
         ctx.drops.(drop_index)
         )
