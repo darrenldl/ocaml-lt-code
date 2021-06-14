@@ -8,5 +8,6 @@
  (public_name ofountain)
  (instrumentation (backend bisect_ppx))
  (libraries cstruct
+            containers
   )
  )

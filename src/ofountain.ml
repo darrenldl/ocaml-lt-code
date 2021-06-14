@@ -24,18 +24,21 @@ module Encode = struct
     | `Invalid_drop_data_buffer
     ]
 
-  let gen_degrees_uniform (ctx : Ctx.t) : int array =
-    let systematic = Ctx.systematic ctx in
+  let gen_degrees (ctx : Ctx.t) : int array =
     let data_block_count = Ctx.data_block_count ctx in
     let drop_count = Ctx.drop_count ctx in
-    let degrees = Array.make drop_count 0 in
-    Random.self_init ();
-    for i = 0 to drop_count - 1 do
-      if systematic && i < data_block_count then degrees.(i) <- 1
-      else degrees.(i) <- Random.int data_block_count
-    done;
+    let systematic = Ctx.systematic ctx in
+    let degrees =
+      if systematic then (
+        let degrees = Array.make drop_count 1 in
+        let n = drop_count - data_block_count in
+        let degrees' = Dist.choose_n (Ctx.dist ctx) n in
+        Array.blit degrees' 0 degrees data_block_count n;
+        degrees)
+      else Dist.choose_n (Ctx.dist ctx) drop_count
+    in
     (* fix a random drop to be degree 1 to ensure decoding is at least possible *)
-    degrees.(Random.int drop_count) <- 1;
+    if not systematic then degrees.(Random.int drop_count) <- 1;
     degrees
 
   let encode_with_ctx ?(drop_data_buffer : Cstruct.t array option) (ctx : Ctx.t)
@@ -47,8 +50,8 @@ module Encode = struct
       if not (Utils.cstruct_array_is_consistent data_blocks) then
         Error `Inconsistent_data_block_size
       else
-        let degrees = gen_degrees_uniform ctx in
         let drop_count = Ctx.drop_count ctx in
+        let degrees = gen_degrees ctx in
         let data_buffer =
           match drop_data_buffer with
           | None ->
@@ -57,6 +60,7 @@ module Encode = struct
           | Some buffer ->
               if
                 Array.length buffer = Ctx.drop_count ctx
+                && Cstruct.length buffer.(0) = Cstruct.length data_blocks.(0)
                 && Utils.cstruct_array_is_consistent buffer
               then Ok buffer
               else Error `Invalid_drop_data_buffer
@@ -142,9 +146,8 @@ module Decode = struct
             | Some buffer ->
                 if
                   Array.length buffer = Ctx.data_block_count ctx
-                  && Array.for_all
-                       (fun b -> Cstruct.length b = drop_size)
-                       buffer
+                  && Cstruct.length buffer.(0) = drop_size
+                  && Utils.cstruct_array_is_consistent buffer
                 then Ok buffer
                 else Error `Invalid_data_block_buffer
           in

@@ -3,6 +3,7 @@ type t = {
   data_block_count : int;
   drop_count : int;
   unsolved_data_blocks_init : Int_set.t;
+  dist : Dist.t;
 }
 
 type error =
@@ -17,6 +18,8 @@ let data_block_count t = t.data_block_count
 let drop_count t = t.drop_count
 
 let unsolved_data_blocks_init t = t.unsolved_data_blocks_init
+
+let dist t = t.dist
 
 let make_unsolved_data_blocks ~data_block_count : Int_set.t =
   let rec aux c (acc : Int_set.t) =
@@ -37,4 +40,5 @@ let make ~systematic ~data_block_count ~drop_count : (t, error) result =
         data_block_count;
         drop_count;
         unsolved_data_blocks_init = make_unsolved_data_blocks ~data_block_count;
+        dist = Dist.robust_soliton_dist ~k:data_block_count;
       }
