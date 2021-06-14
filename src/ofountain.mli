@@ -79,12 +79,13 @@ val encode_with_param_lazy :
   (Drop.t Seq.t, encode_error) result
 
 type decode_error =
-  [ `Inconsistent_drop_size
-  | `Invalid_drop_index
-  | `Invalid_drop_count
-  | `Insufficient_drops
-  | `Invalid_data_block_buffer
-  ]
+    [ `Invalid_drop_index
+    | `Invalid_drop_count
+    | `Insufficient_drops
+    | `Invalid_data_block_buffer
+    | `Invalid_data_block_size
+    | `Invalid_drop_size
+    ]
 
 val decode :
   ?data_block_buffer:Cstruct.t array ->
