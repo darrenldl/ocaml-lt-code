@@ -2,7 +2,7 @@ val max_data_block_count : int
 
 val max_drop_count : int
 
-module Ctx : sig
+module Param : sig
   type t
 
   type error =
@@ -57,11 +57,24 @@ val encode :
   ?drop_data_buffer:Cstruct.t array ->
   drop_count:int ->
   Cstruct.t array ->
-  (Ctx.t * Drop.t Seq.t, encode_error) result
+  (Param.t * Drop.t array, encode_error) result
 
-val encode_with_ctx :
+val encode_lazy :
+  ?systematic:bool ->
   ?drop_data_buffer:Cstruct.t array ->
-  Ctx.t ->
+  drop_count:int ->
+  Cstruct.t array ->
+  (Param.t * Drop.t Seq.t, encode_error) result
+
+val encode_with_param :
+  ?drop_data_buffer:Cstruct.t array ->
+  Param.t ->
+  Cstruct.t array ->
+  (Drop.t array, encode_error) result
+
+val encode_with_param_lazy :
+  ?drop_data_buffer:Cstruct.t array ->
+  Param.t ->
   Cstruct.t array ->
   (Drop.t Seq.t, encode_error) result
 
@@ -75,6 +88,6 @@ type decode_error =
 
 val decode :
   ?data_block_buffer:Cstruct.t array ->
-  Ctx.t ->
+  Param.t ->
   Drop_set.t ->
   (Cstruct.t array, decode_error) result
