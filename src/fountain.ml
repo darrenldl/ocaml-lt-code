@@ -25,13 +25,13 @@ module Encode = struct
     let data_block_count_int = Ctx.data_block_count ctx in
     let drop_count = Ctx.drop_count ctx in
     let degrees = Array.make drop_count 0 in
-    (* fix first drop to be degree 1 to ensure decoding is at least possible *)
-    degrees.(0) <- 1;
     Random.self_init ();
     for i = 1 to drop_count - 1 do
       if systematic && i <= data_block_count_int then degrees.(i) <- 1
       else degrees.(i) <- Random.int data_block_count
     done;
+    (* fix a random drop to be degree 1 to ensure decoding is at least possible *)
+    degrees.(Random.int drop_count) <- 1;
     degrees
 
   let encode_with_ctx (ctx : Ctx.t) data_blocks : (Drop.t array, error) result =
