@@ -1,12 +1,13 @@
 module Qc = struct
-  let encode_decode =
-    QCheck.Test.make ~count:10 ~name:"encode_decode"
-    QCheck.(triple bool (array_of_size (Gen.int_range 1 100) (string_of_size (Gen.return 10))) (int_bound 200))
-    (fun (systematic, data_blocks, drop_count_offset) ->
+  let encode_decode_systematic =
+    QCheck.Test.make ~count:10_000 ~name:"encode_decode"
+    QCheck.(pair (array_of_size (Gen.int_range 1 10) (string_of_size (Gen.return 10))) (int_bound 20))
+    (fun (data_blocks, drop_count_offset) ->
       QCheck.assume (Array.length data_blocks > 0);
+      QCheck.assume (Array.for_all (fun x -> String.length x > 0) data_blocks);
       let data_blocks = Array.map Bytes.of_string data_blocks in
       let drop_count = Array.length data_blocks + drop_count_offset in
-      match Ofountain.encode ~systematic ~drop_count data_blocks with
+      match Ofountain.encode ~systematic:true ~drop_count data_blocks with
       | Error _ -> false
       | Ok (ctx, drops) ->
           match Ofountain.decode ctx (Ofountain.Drop_set.of_seq @@ Array.to_seq drops) with
@@ -31,7 +32,7 @@ let () =
   in
   let qc_suites =
     [
-      ("encode_decode", [Qc.encode_decode]);
+      ("encode_decode_systematic", [Qc.encode_decode_systematic]);
     ]
     |> List.map (fun (name, test) ->
            (name, List.map QCheck_alcotest.to_alcotest test))

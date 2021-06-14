@@ -29,8 +29,8 @@ module Encode = struct
     let drop_count = Ctx.drop_count ctx in
     let degrees = Array.make drop_count 0 in
     Random.self_init ();
-    for i = 1 to drop_count - 1 do
-      if systematic && i <= data_block_count then degrees.(i) <- 1
+    for i = 0 to drop_count - 1 do
+      if systematic && i < data_block_count then degrees.(i) <- 1
       else degrees.(i) <- Random.int data_block_count
     done;
     (* fix a random drop to be degree 1 to ensure decoding is at least possible *)
