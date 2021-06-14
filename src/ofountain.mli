@@ -49,10 +49,12 @@ type encode_error =
   [ `Inconsistent_data_block_size
   | `Invalid_drop_count
   | `Invalid_data_block_count
+  | `Invalid_drop_data_buffer
   ]
 
 val encode :
   ?systematic:bool ->
+  ?drop_data_buffer:Cstruct.t array ->
   drop_count:int ->
   Cstruct.t array ->
   (Ctx.t * Drop.t array, encode_error) result

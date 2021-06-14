@@ -19,3 +19,9 @@ let xor_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
   in
   let len = Cstruct.length src in
   aux 0 len src onto
+
+let cstruct_array_is_consistent (arr : Cstruct.t array) : bool =
+  Array.length arr = 0
+  ||
+  let len = Cstruct.length arr.(0) in
+  Array.for_all (fun x -> Cstruct.length x = len) arr

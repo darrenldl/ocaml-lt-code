@@ -21,6 +21,7 @@ module Encode = struct
     [ `Inconsistent_data_block_size
     | `Invalid_drop_count
     | `Invalid_data_block_count
+    | `Invalid_drop_data_buffer
     ]
 
   let gen_degrees_uniform (ctx : Ctx.t) : int array =
@@ -37,33 +38,46 @@ module Encode = struct
     degrees.(Random.int drop_count) <- 1;
     degrees
 
-  let encode_with_ctx (ctx : Ctx.t) data_blocks : (Drop.t array, error) result =
+  let encode_with_ctx ?(drop_data_buffer : Cstruct.t array option) (ctx : Ctx.t)
+      data_blocks : (Drop.t array, error) result =
     if Array.length data_blocks <> Ctx.data_block_count ctx then
       Error `Invalid_data_block_count
     else
       let data_block_len = Cstruct.length data_blocks.(0) in
-      if
-        not
-          (Array.for_all
-             (fun x -> Cstruct.length x = data_block_len)
-             data_blocks)
-      then Error `Inconsistent_data_block_size
+      if not (Utils.cstruct_array_is_consistent data_blocks) then
+        Error `Inconsistent_data_block_size
       else
         let degrees = gen_degrees_uniform ctx in
-        let drops =
-          Array.init (Ctx.drop_count ctx) (fun index ->
-              let degree = degrees.(index) in
-              let data = Cstruct.create data_block_len in
-              let drop = Drop.make_exn ~index ~degree ~data in
-              List.iter
-                (fun i -> Utils.xor_onto ~src:data_blocks.(i) ~onto:data)
-                (get_data_block_indices ctx drop);
-              drop)
+        let drop_count = Ctx.drop_count ctx in
+        let data_buffer =
+          match drop_data_buffer with
+          | None ->
+              Ok
+                (Array.init drop_count (fun _ -> Cstruct.create data_block_len))
+          | Some buffer ->
+              if
+                Array.length buffer = Ctx.drop_count ctx
+                && Utils.cstruct_array_is_consistent buffer
+              then Ok buffer
+              else Error `Invalid_drop_data_buffer
         in
-        Ok drops
+        match data_buffer with
+        | Error e -> Error e
+        | Ok data_buffer ->
+            let drops =
+              Array.init (Ctx.drop_count ctx) (fun index ->
+                  let degree = degrees.(index) in
+                  let data = data_buffer.(index) in
+                  let drop = Drop.make_exn ~index ~degree ~data in
+                  List.iter
+                    (fun i -> Utils.xor_onto ~src:data_blocks.(i) ~onto:data)
+                    (get_data_block_indices ctx drop);
+                  drop)
+            in
+            Ok drops
 
-  let encode ?(systematic = true) ~drop_count (data_blocks : Cstruct.t array) :
-      (Ctx.t * Drop.t array, error) result =
+  let encode ?(systematic = true) ?drop_data_buffer ~drop_count
+      (data_blocks : Cstruct.t array) : (Ctx.t * Drop.t array, error) result =
     let data_block_count = Array.length data_blocks in
     match Ctx.make ~systematic ~data_block_count ~drop_count with
     | Error e -> (
@@ -71,7 +85,7 @@ module Encode = struct
         | (`Invalid_data_block_count | `Invalid_drop_count) as e ->
             Error (e :> error))
     | Ok ctx -> (
-        match encode_with_ctx ctx data_blocks with
+        match encode_with_ctx ?drop_data_buffer ctx data_blocks with
         | Error e -> Error e
         | Ok drops -> Ok (ctx, drops))
 end
