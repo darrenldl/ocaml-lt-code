@@ -26,7 +26,7 @@ module Encode = struct
 
   let gen_degrees (param : Param.t) : int array =
     let data_block_count = Param.data_block_count param in
-    let drop_count = Param.drop_count param in
+    let drop_count = Param.drop_count_limit param in
     let systematic = Param.systematic param in
     let degrees =
       if systematic then (
@@ -58,7 +58,7 @@ module Encode = struct
       if not (Utils.cstruct_array_is_consistent data_blocks) then
         Error `Inconsistent_data_block_size
       else
-        let drop_count = Param.drop_count param in
+        let drop_count = Param.drop_count_limit param in
         let degrees = gen_degrees param in
         let drop_data_buffer =
           match drop_data_buffer with
@@ -67,7 +67,7 @@ module Encode = struct
                 (Array.init drop_count (fun _ -> Cstruct.create data_block_len))
           | Some buffer ->
               if
-                Array.length buffer = Param.drop_count param
+                Array.length buffer = Param.drop_count_limit param
                 && Cstruct.length buffer.(0) = Cstruct.length data_blocks.(0)
                 && Utils.cstruct_array_is_consistent buffer
               then (
@@ -91,7 +91,7 @@ module Encode = struct
     encoder.cur_drop_index <- 0
 
   let encode_one_drop (encoder : encoder) : Drop.t option =
-    let drop_count = Param.drop_count encoder.param in
+    let drop_count = Param.drop_count_limit encoder.param in
     let index = encoder.cur_drop_index in
     if index < drop_count then (
       let degree = encoder.degrees.(index) in
@@ -105,9 +105,9 @@ module Encode = struct
         )
     else None
 
-  let encode ?(systematic = true) ?drop_data_buffer ~drop_count
+  let encode ?(systematic = true) ?drop_data_buffer ~drop_count_limit
       (data_blocks : Cstruct.t array) : (Param.t * Drop.t array, error) result =
-    match Param.make ~systematic ~data_block_count:(Array.length data_blocks) ~drop_count with
+    match Param.make ~systematic ~data_block_count:(Array.length data_blocks) ~drop_count_limit with
     | Error e -> (
         match e with
         | (`Invalid_data_block_count | `Invalid_drop_count) as e ->
@@ -116,7 +116,7 @@ module Encode = struct
       match make_encoder ?drop_data_buffer param data_blocks with
       | Error e -> Error (e :> error)
       | Ok encoder ->
-        let arr = Array.init drop_count (fun _ ->
+        let arr = Array.init drop_count_limit (fun _ ->
           Option.get @@ encode_one_drop encoder
       )
         in
@@ -153,7 +153,7 @@ module Decode = struct
         data_block_solved_count = 0;
         drop_fill_count = 0;
         data_edges = Array.make data_block_count Int_set.empty;
-        drop_edges = Array.make (Param.drop_count param) Int_set.empty;
+        drop_edges = Array.make (Param.drop_count_limit param) Int_set.empty;
       }
 
     let reset (g : t) : unit =
@@ -225,7 +225,7 @@ module Decode = struct
               graph = Graph.make param;
               data_block_size;
               data_blocks;
-              drops = Array.make (Param.drop_count param) None;
+              drops = Array.make (Param.drop_count_limit param) None;
             }
 
     let reset_decoder (decoder : decoder) : unit =
@@ -312,7 +312,7 @@ module Decode = struct
     decoder.graph.data_block_solved_count = Param.data_block_count decoder.param
 
   let max_tries_reached (decoder : decoder) : bool =
-    decoder.graph.drop_fill_count = Param.drop_count decoder.param
+    decoder.graph.drop_fill_count = Param.drop_count_limit decoder.param
 
   let decode_one_drop (decoder : decoder) (drop : Drop.t) : (status, error) result =
     if Cstruct.length (Drop.data drop) <> decoder.data_block_size then
@@ -369,6 +369,19 @@ let make_encoder = Encode.make_encoder
 
 let reset_encoder = Encode.reset_encoder
 
+let param_of_encoder (encoder : Encode.encoder) = encoder.param
+
+let data_block_count_of_encoder (encoder : Encode.encoder) =
+  Param.data_block_count
+  encoder.param
+
+let drop_count_limit_of_encoder (encoder : Encode.encoder) =
+  Param.drop_count_limit encoder.param
+
+let data_block_size_of_encoder (encoder : Encode.encoder) = Cstruct.length encoder.data_blocks.(0)
+
+let data_blocks_of_encoder (encoder : Encode.encoder) = encoder.data_blocks
+
 let encode_one_drop = Encode.encode_one_drop
 
 let encode = Encode.encode
@@ -384,6 +397,13 @@ let make_decoder = Decode.make_decoder
 let reset_decoder = Decode.reset_decoder
 
 let param_of_decoder (decoder : Decode.decoder) = decoder.param
+
+let data_block_count_of_decoder (decoder : Decode.decoder) =
+  Param.data_block_count
+  decoder.param
+
+let drop_count_limit_of_decoder (decoder : Decode.decoder) =
+  Param.drop_count_limit decoder.param
 
 let data_block_size_of_decoder (decoder : Decode.decoder) = decoder.data_block_size
 

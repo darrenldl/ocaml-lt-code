@@ -14,12 +14,12 @@ module Param : sig
 
   val data_block_count : t -> int
 
-  val drop_count : t -> int
+  val drop_count_limit : t -> int
 
   val make :
     systematic:bool ->
     data_block_count:int ->
-    drop_count:int ->
+    drop_count_limit:int ->
     (t, error) result
 end
 
@@ -48,6 +48,20 @@ val reset_encoder :
   encoder ->
   unit
 
+val param_of_encoder : encoder -> Param.t
+
+val data_block_count_of_encoder : encoder -> int
+
+val drop_count_limit_of_encoder : encoder -> int
+
+val data_block_size_of_encoder :
+  encoder ->
+  int
+
+val data_blocks_of_encoder :
+  encoder ->
+  Cstruct.t array
+
 val encode_one_drop :
   encoder ->
   drop option
@@ -55,7 +69,7 @@ val encode_one_drop :
 val encode :
   ?systematic:bool ->
   ?drop_data_buffer:Cstruct.t array ->
-  drop_count:int ->
+  drop_count_limit:int ->
   Cstruct.t array ->
   (Param.t * drop array, encode_error) result
 
@@ -79,6 +93,10 @@ type decoder
 val reset_decoder : decoder -> unit
 
 val param_of_decoder : decoder -> Param.t
+
+val data_block_count_of_decoder : decoder -> int
+
+val drop_count_limit_of_decoder : decoder -> int
 
 val data_block_size_of_decoder : decoder -> int
 
