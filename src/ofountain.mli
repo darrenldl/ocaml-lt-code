@@ -95,6 +95,10 @@ val decode :
 
 type decode_ctx
 
+val drop_fill_count_of_decode_ctx : decode_ctx -> int
+
+val data_blocks_of_decode_ctx : decode_ctx -> Cstruct.t array option
+
 type decode_status =
   [ `Success of Cstruct.t array
   | `Ongoing

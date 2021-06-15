@@ -289,15 +289,19 @@ module Decode = struct
     | `Ongoing
     ]
 
+  let data_is_ready (ctx : ctx) : bool =
+    ctx.graph.data_block_solved_count = Param.data_block_count ctx.param
+
+  let max_tries_reached (ctx : ctx) : bool =
+    ctx.graph.drop_fill_count = Param.drop_count ctx.param
+
   let decode_drop (ctx : ctx) (drop : Drop.t) : (status, error) result =
     if Cstruct.length (Drop.data drop) <> ctx.data_block_size then
       Error `Invalid_drop_size
     else
       let drop_index = Drop.index drop in
-      if ctx.graph.data_block_solved_count = Param.data_block_count ctx.param
-      then Ok (`Success ctx.data_blocks)
-      else if ctx.graph.drop_fill_count = Param.drop_count ctx.param then
-        Error `Cannot_recover
+      if data_is_ready ctx then Ok (`Success ctx.data_blocks)
+      else if max_tries_reached ctx then Error `Cannot_recover
       else
         match ctx.drops.(drop_index) with
         | Some _ -> Ok `Ongoing
@@ -307,8 +311,7 @@ module Decode = struct
             match reduce ctx with
             | `Success -> Ok (`Success ctx.data_blocks)
             | `Need_more_drops ->
-                if ctx.graph.drop_fill_count = Param.drop_count ctx.param then
-                  Error `Cannot_recover
+                if max_tries_reached ctx then Error `Cannot_recover
                 else Ok `Ongoing)
 
   let decode ?data_block_buffer (param : Param.t) (drops : Drop_set.t) :
@@ -350,6 +353,11 @@ type decode_error = Decode.error
 type decode_ctx = Decode.ctx
 
 type decode_status = Decode.status
+
+let drop_fill_count_of_decode_ctx (ctx : Decode.ctx) = ctx.graph.drop_fill_count
+
+let data_blocks_of_decode_ctx (ctx : Decode.ctx) : Cstruct.t array option =
+  if Decode.data_is_ready ctx then Some ctx.data_blocks else None
 
 let make_decode_ctx = Decode.make_ctx
 
