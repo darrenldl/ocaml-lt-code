@@ -33,10 +33,10 @@ let make_setup ~systematic ~data_block_count ~redundancy ~data_block_size
     Result.get_ok
     @@ Ofountain.Param.make ~systematic ~data_block_count ~drop_count
   in
-  assert (0.0 <= data_loss_rate && data_loss_rate < 1.0);
+  assert (0.0 <= data_loss_rate);
   { param; data_block_size; data_loss_rate; rounds }
 
-let run (setup : setup) : combined_stats =
+let run_once ~data_block_buffer (setup : setup) data_blocks drops : stats =
   let rec aux (original_data_blocks : Cstruct.t array)
       (decode_ctx : Ofountain.decode_ctx) (stats : stats)
       (drops : Ofountain.drop Seq.t) : stats =
@@ -62,6 +62,14 @@ let run (setup : setup) : combined_stats =
           | Error `Cannot_recover -> stats
           | Error _ -> failwith "Unexpected case")
   in
+  let decode_ctx =
+    Result.get_ok
+    @@ Ofountain.make_decode_ctx ~data_block_buffer
+         ~data_block_size:setup.data_block_size setup.param
+  in
+  aux data_blocks decode_ctx empty_stats drops
+
+let run (setup : setup) : combined_stats =
   let data_blocks =
     Array.init (Ofountain.Param.data_block_count setup.param) (fun _ ->
         Cstruct.create setup.data_block_size)
@@ -85,14 +93,9 @@ let run (setup : setup) : combined_stats =
     @@ Ofountain.encode_with_param_lazy ~drop_data_buffer setup.param
          data_blocks
   in
-  let decode_ctx =
-    Result.get_ok
-    @@ Ofountain.make_decode_ctx ~data_block_buffer
-         ~data_block_size:setup.data_block_size setup.param
-  in
   let stats_collection =
     Array.init setup.rounds (fun _ ->
-        aux data_blocks decode_ctx empty_stats drops)
+        run_once ~data_block_buffer setup data_blocks drops)
   in
   let data_block_count =
     float_of_int @@ Ofountain.Param.data_block_count setup.param
@@ -100,14 +103,16 @@ let run (setup : setup) : combined_stats =
   let sum =
     Array.fold_left
       (fun sum stats ->
-        if stats.success then
+        if stats.success then (
+          let overhead =
+            (float_of_int stats.drops_used -. data_block_count)
+            /. data_block_count
+          in
+          assert (overhead >= 0.0);
           {
-            total_overhead =
-              sum.total_overhead
-              +. (float_of_int stats.drops_used -. data_block_count)
-                 /. data_block_count;
+            total_overhead = sum.total_overhead +. overhead;
             total_success_count = sum.total_success_count + 1;
-          }
+          })
         else sum)
       empty_stats_sum stats_collection
   in
@@ -119,9 +124,10 @@ let run (setup : setup) : combined_stats =
 
 let () =
   let setup =
-    make_setup ~systematic:false ~data_block_count:100 ~redundancy:0.2
+    make_setup ~systematic:false ~data_block_count:1000 ~redundancy:2.0
       ~data_block_size:1_000 ~data_loss_rate:0.0 ~rounds:10
   in
   let stats = run setup in
-  Printf.printf "success rate: % 3.3f, avg. overhead: % 3.3f\n"
-    stats.success_rate stats.average_overhead
+  Printf.printf "success rate: % 3.3f%%, avg. overhead: % 3.3f%%\n"
+    (100.0 *. stats.success_rate)
+    (100.0 *. stats.average_overhead)
