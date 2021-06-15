@@ -79,7 +79,7 @@ module Encode = struct
         match data_buffer with
         | Error e -> Error e
         | Ok data_buffer ->
-            OSeq.(0 -- Param.drop_count param)
+            OSeq.(0 --^ Param.drop_count param)
             |> Seq.map (fun index ->
                    let degree = degrees.(index) in
                    let data = data_buffer.(index) in
