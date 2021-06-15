@@ -21,7 +21,7 @@ let array_of_seq ~drop_count s =
   let s = ref s in
   Array.init drop_count (fun _ ->
       match !s () with
-      | Seq.Nil -> failwith "Unexpected"
+      | Seq.Nil -> failwith "Unexpected case"
       | Seq.Cons (x, s') ->
           s := s';
           x)
