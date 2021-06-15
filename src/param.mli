@@ -11,8 +11,6 @@ val data_block_count : t -> int
 
 val drop_count : t -> int
 
-val unsolved_data_blocks_init : t -> Int_set.t
-
 val dist : t -> Dist.t
 
 val make :
