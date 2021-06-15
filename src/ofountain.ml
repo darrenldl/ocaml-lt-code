@@ -16,14 +16,9 @@ let get_data_block_indices (param : Param.t) (t : Drop.t) : Int_set.t =
     Random.init (Drop.index t);
     aux 0 (Drop.degree t) Int_set.empty)
 
-let array_of_seq ~drop_count s =
-  let s = ref s in
+let array_of_gen ~drop_count gen =
   Array.init drop_count (fun _ ->
-      match !s () with
-      | Seq.Nil -> failwith "Unexpected case"
-      | Seq.Cons (x, s') ->
-          s := s';
-          x)
+      Option.get @@ gen ())
 
 module Encode = struct
   type error =
@@ -51,7 +46,7 @@ module Encode = struct
     degrees
 
   let encode_with_param_lazy ?(drop_data_buffer : Cstruct.t array option)
-      (param : Param.t) data_blocks : (Drop.t Seq.t, error) result =
+      (param : Param.t) data_blocks : (unit -> Drop.t option, error) result =
     if Array.length data_blocks <> Param.data_block_count param then
       Error `Invalid_data_block_count
     else
@@ -79,24 +74,29 @@ module Encode = struct
         match data_buffer with
         | Error e -> Error e
         | Ok data_buffer ->
-            OSeq.(0 --^ Param.drop_count param)
-            |> Seq.map (fun index ->
-                   let degree = degrees.(index) in
+          let cur = ref 0 in
+          Ok (fun () ->
+            if !cur < drop_count then
+            let index = !cur in
+            let degree = degrees.(index) in
                    let data = data_buffer.(index) in
                    let drop = Drop.make_exn ~index ~degree ~data in
                    Int_set.iter
                      (fun i -> Utils.xor_onto ~src:data_blocks.(i) ~onto:data)
                      (get_data_block_indices param drop);
-                   drop)
-            |> Result.ok
+                     cur := !cur + 1;
+                   Some drop
+            else
+              None
+             )
 
   let encode_with_param ?drop_data_buffer param data_blocks =
     match encode_with_param_lazy ?drop_data_buffer param data_blocks with
     | Error e -> Error e
-    | Ok s -> Ok (array_of_seq ~drop_count:(Param.drop_count param) s)
+    | Ok s -> Ok (array_of_gen ~drop_count:(Param.drop_count param) s)
 
   let encode_lazy ?(systematic = true) ?drop_data_buffer ~drop_count
-      (data_blocks : Cstruct.t array) : (Param.t * Drop.t Seq.t, error) result =
+      (data_blocks : Cstruct.t array) : (Param.t * (unit -> Drop.t option), error) result =
     let data_block_count = Array.length data_blocks in
     match Param.make ~systematic ~data_block_count ~drop_count with
     | Error e -> (
@@ -112,7 +112,7 @@ module Encode = struct
       (data_blocks : Cstruct.t array) : (Param.t * Drop.t array, error) result =
     match encode_lazy ?systematic ?drop_data_buffer ~drop_count data_blocks with
     | Error e -> Error e
-    | Ok (param, s) -> Ok (param, array_of_seq ~drop_count s)
+    | Ok (param, g) -> Ok (param, array_of_gen ~drop_count g)
 end
 
 module Decode = struct

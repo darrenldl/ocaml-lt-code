@@ -40,12 +40,13 @@ let run_once ~data_block_buffer ~drop_data_buffer (setup : setup) data_blocks :
     stats =
   let rec aux (original_data_blocks : Cstruct.t array)
       (decode_ctx : Ofountain.decode_ctx) (stats : stats)
-      (drops : Ofountain.drop Seq.t) : stats =
+      (drops : unit -> Ofountain.drop option) : stats =
     match drops () with
-    | Seq.Nil -> stats
-    | Seq.Cons (x, xs) -> (
+    | None -> stats
+    | Some x -> (
+        Random.self_init ();
         if Random.float 1.0 < setup.data_loss_rate then
-          aux original_data_blocks decode_ctx stats xs
+          aux original_data_blocks decode_ctx stats drops
         else
           let stats = { stats with drops_used = stats.drops_used + 1 } in
           match Ofountain.decode_drop decode_ctx x with
@@ -64,7 +65,7 @@ let run_once ~data_block_buffer ~drop_data_buffer (setup : setup) data_blocks :
                 assert same
               done;
               { stats with success = true }
-          | Ok `Ongoing -> aux original_data_blocks decode_ctx stats xs
+          | Ok `Ongoing -> aux original_data_blocks decode_ctx stats drops
           | Error `Cannot_recover -> stats
           | Error _ -> failwith "Unexpected case")
   in
@@ -130,10 +131,10 @@ let run (setup : setup) : combined_stats =
 
 let () =
   let setup =
-    make_setup ~systematic:true ~data_block_count:10 ~redundancy:0.3
-      ~data_block_size:100 ~data_loss_rate:0.01 ~rounds:100
+    make_setup ~systematic:false ~data_block_count:1600 ~redundancy:2.0
+      ~data_block_size:1300 ~data_loss_rate:0.05 ~rounds:100
   in
   let stats = run setup in
-  Printf.printf "success rate: % 3.3f%%, avg. overhead: % 3.3f%%\n"
+  Printf.printf "success rate: % 3.3f%%, avg. overhead for successful cases: % 3.3f%%\n"
     (100.0 *. stats.success_rate)
     (100.0 *. stats.average_overhead)

@@ -9,6 +9,5 @@
  (instrumentation (backend bisect_ppx))
  (libraries cstruct
             containers
-            oseq
   )
  )

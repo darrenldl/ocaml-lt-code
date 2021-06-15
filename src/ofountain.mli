@@ -48,7 +48,7 @@ val encode_lazy :
   ?drop_data_buffer:Cstruct.t array ->
   drop_count:int ->
   Cstruct.t array ->
-  (Param.t * drop Seq.t, encode_error) result
+  (Param.t * (unit -> drop option), encode_error) result
 
 val encode_with_param :
   ?drop_data_buffer:Cstruct.t array ->
@@ -60,7 +60,7 @@ val encode_with_param_lazy :
   ?drop_data_buffer:Cstruct.t array ->
   Param.t ->
   Cstruct.t array ->
-  (drop Seq.t, encode_error) result
+  (unit -> drop option, encode_error) result
 
 type decode_error =
   [ `Invalid_drop_index

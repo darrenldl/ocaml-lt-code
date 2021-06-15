@@ -22,7 +22,7 @@ test : lib
 
 .PHONY: sim-main
 sim-main : lib
-	OCAMLRUNPARAM=b dune exec --force ./sims/main.exe
+	dune exec --release --force ./sims/main.exe
 
 .PHONY: cov-desc-test
 cov-desc-test : desc
