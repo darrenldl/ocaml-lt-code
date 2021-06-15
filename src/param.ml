@@ -22,7 +22,8 @@ let make ~systematic ~data_block_count ~drop_count_limit : (t, error) result =
   if data_block_count <= 0 || data_block_count >= Constants.max_data_block_count
   then Error `Invalid_data_block_count
   else if
-    drop_count_limit < data_block_count || drop_count_limit >= Constants.max_drop_count
+    drop_count_limit < data_block_count
+    || drop_count_limit >= Constants.max_drop_count
   then Error `Invalid_drop_count
   else
     Ok

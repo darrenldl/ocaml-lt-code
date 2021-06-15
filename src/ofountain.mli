@@ -44,9 +44,7 @@ val make_encoder :
   Cstruct.t array ->
   (encoder, encode_error) result
 
-val reset_encoder :
-  encoder ->
-  unit
+val reset_encoder : encoder -> unit
 
 val param_of_encoder : encoder -> Param.t
 
@@ -54,17 +52,11 @@ val data_block_count_of_encoder : encoder -> int
 
 val drop_count_limit_of_encoder : encoder -> int
 
-val data_block_size_of_encoder :
-  encoder ->
-  int
+val data_block_size_of_encoder : encoder -> int
 
-val data_blocks_of_encoder :
-  encoder ->
-  Cstruct.t array
+val data_blocks_of_encoder : encoder -> Cstruct.t array
 
-val encode_one_drop :
-  encoder ->
-  drop option
+val encode_one_drop : encoder -> drop option
 
 val encode :
   ?systematic:bool ->
