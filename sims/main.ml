@@ -55,11 +55,12 @@ let run_once ~data_block_buffer ~drop_data_buffer (setup : setup) data_blocks : 
                      (Ofountain.param_of_decode_ctx decode_ctx)
                    - 1
               do
-                if not (Cstruct.equal arr.(i) original_data_blocks.(i)) then (
+                let same = Cstruct.equal arr.(i) original_data_blocks.(i) in
+                if not same then (
                 Fmt.pr "recovered: %a\n" Cstruct.hexdump_pp arr.(i);
                 Fmt.pr "original:  %a\n" Cstruct.hexdump_pp original_data_blocks.(i);
                 );
-                assert (Cstruct.equal arr.(i) original_data_blocks.(i))
+                assert same
               done;
               { stats with success = true }
           | Ok `Ongoing -> aux original_data_blocks decode_ctx stats xs
@@ -98,8 +99,7 @@ let run (setup : setup) : combined_stats =
         Cstruct.create setup.data_block_size)
   in
   let stats_collection =
-    Array.init setup.rounds (fun i ->
-      Printf.printf "round: %d\n" i;
+    Array.init setup.rounds (fun _ ->
         run_once ~data_block_buffer ~drop_data_buffer setup data_blocks)
   in
   let data_block_count =
