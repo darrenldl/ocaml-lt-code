@@ -24,10 +24,11 @@ let empty_stats = { drops_used = 0; success = false }
 
 let empty_stats_sum = { total_overhead = 0.0; total_success_count = 0 }
 
-let make_setup ~systematic ~data_block_count ~redundancy ~data_block_size
+let make_setup ~systematic ~data_block_count ~max_redundancy ~data_block_size
     ~data_loss_rate ~rounds =
   let drop_count =
-    int_of_float ((1.0 +. redundancy) *. float_of_int data_block_count)
+    data_block_count
+    + int_of_float (max_redundancy *. float_of_int data_block_count)
   in
   let param =
     Result.get_ok
@@ -131,7 +132,7 @@ let run (setup : setup) : combined_stats =
 
 let () =
   let setup =
-    make_setup ~systematic:false ~data_block_count:1600 ~redundancy:2.0
+    make_setup ~systematic:false ~data_block_count:100 ~max_redundancy:2.0
       ~data_block_size:1300 ~data_loss_rate:0.05 ~rounds:100
   in
   let stats = run setup in
