@@ -36,7 +36,8 @@ let make_setup ~systematic ~data_block_count ~redundancy ~data_block_size
   assert (0.0 <= data_loss_rate);
   { param; data_block_size; data_loss_rate; rounds }
 
-let run_once ~data_block_buffer ~drop_data_buffer (setup : setup) data_blocks : stats =
+let run_once ~data_block_buffer ~drop_data_buffer (setup : setup) data_blocks :
+    stats =
   let rec aux (original_data_blocks : Cstruct.t array)
       (decode_ctx : Ofountain.decode_ctx) (stats : stats)
       (drops : Ofountain.drop Seq.t) : stats =
@@ -57,9 +58,9 @@ let run_once ~data_block_buffer ~drop_data_buffer (setup : setup) data_blocks : 
               do
                 let same = Cstruct.equal arr.(i) original_data_blocks.(i) in
                 if not same then (
-                Fmt.pr "recovered: %a\n" Cstruct.hexdump_pp arr.(i);
-                Fmt.pr "original:  %a\n" Cstruct.hexdump_pp original_data_blocks.(i);
-                );
+                  Fmt.pr "recovered: %a\n" Cstruct.hexdump_pp arr.(i);
+                  Fmt.pr "original:  %a\n" Cstruct.hexdump_pp
+                    original_data_blocks.(i));
                 assert same
               done;
               { stats with success = true }
