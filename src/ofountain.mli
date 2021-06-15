@@ -92,3 +92,18 @@ val decode :
   Param.t ->
   Drop_set.t ->
   (Cstruct.t array, decode_error) result
+
+type decode_ctx
+
+type decode_status =
+  [ `Success of Cstruct.t array
+  | `Ongoing
+  ]
+
+val make_decode_ctx :
+  ?data_block_buffer:Cstruct.t array ->
+  data_block_size:int ->
+  Param.t ->
+  (decode_ctx, decode_error) result
+
+val decode_drop : decode_ctx -> Drop.t -> (decode_status, decode_error) result

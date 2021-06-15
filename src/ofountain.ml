@@ -347,4 +347,12 @@ let encode_with_param_lazy = Encode.encode_with_param_lazy
 
 type decode_error = Decode.error
 
+type decode_ctx = Decode.ctx
+
+type decode_status = Decode.status
+
+let make_decode_ctx = Decode.make_ctx
+
+let decode_drop = Decode.decode_drop
+
 let decode = Decode.decode
