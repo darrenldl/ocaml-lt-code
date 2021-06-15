@@ -3,5 +3,6 @@
  (names main)
  (libraries ofountain
             cstruct
+            fmt
             )
  )

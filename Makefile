@@ -20,6 +20,10 @@ lib :
 test : lib
 	OCAMLRUNPARAM=b dune runtest --force src/
 
+.PHONY: sim-main
+sim-main : lib
+	OCAMLRUNPARAM=b dune exec --force ./sims/main.exe
+
 .PHONY: cov-desc-test
 cov-desc-test : desc
 	find . -name '*.coverage' | xargs rm -f

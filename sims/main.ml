@@ -24,8 +24,11 @@ let empty_stats = { drops_used = 0; success = false }
 
 let empty_stats_sum = { total_overhead = 0.0; total_success_count = 0 }
 
-let make_setup ~systematic ~data_block_count ~drop_count ~data_block_size
+let make_setup ~systematic ~data_block_count ~redundancy ~data_block_size
     ~data_loss_rate ~rounds =
+  let drop_count =
+    int_of_float ((1.0 +. redundancy) *. float_of_int data_block_count)
+  in
   let param =
     Result.get_ok
     @@ Ofountain.Param.make ~systematic ~data_block_count ~drop_count
@@ -113,3 +116,12 @@ let run (setup : setup) : combined_stats =
     average_overhead = sum.total_overhead /. rounds;
     success_rate = float_of_int sum.total_success_count /. rounds;
   }
+
+let () =
+  let setup =
+    make_setup ~systematic:false ~data_block_count:100 ~redundancy:0.2
+      ~data_block_size:1_000 ~data_loss_rate:0.0 ~rounds:10
+  in
+  let stats = run setup in
+  Printf.printf "success rate: % 3.3f, avg. overhead: % 3.3f\n"
+    stats.success_rate stats.average_overhead
