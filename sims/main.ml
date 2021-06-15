@@ -150,6 +150,7 @@ let () =
     "data block count: %d, drop count limit: %d (%3.3f%% redundancy), data \
      block size: %d\n"
     data_block_count drop_count_limit redundancy setup.data_block_size;
+  Printf.printf "data loss rate: %3.3f%%\n" (100.0 *. setup.data_loss_rate);
   Printf.printf
     "success rate: %3.3f%%, avg. overhead for successful cases: %3.3f%%\n"
     (100.0 *. stats.success_rate)
