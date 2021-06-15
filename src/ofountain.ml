@@ -17,8 +17,7 @@ let get_data_block_indices (param : Param.t) (t : Drop.t) : Int_set.t =
     aux 0 (Drop.degree t) Int_set.empty)
 
 let array_of_gen ~drop_count gen =
-  Array.init drop_count (fun _ ->
-      Option.get @@ gen ())
+  Array.init drop_count (fun _ -> Option.get @@ gen ())
 
 module Encode = struct
   type error =
@@ -74,21 +73,20 @@ module Encode = struct
         match data_buffer with
         | Error e -> Error e
         | Ok data_buffer ->
-          let cur = ref 0 in
-          Ok (fun () ->
-            if !cur < drop_count then
-            let index = !cur in
-            let degree = degrees.(index) in
-                   let data = data_buffer.(index) in
-                   let drop = Drop.make_exn ~index ~degree ~data in
-                   Int_set.iter
-                     (fun i -> Utils.xor_onto ~src:data_blocks.(i) ~onto:data)
-                     (get_data_block_indices param drop);
-                     cur := !cur + 1;
-                   Some drop
-            else
-              None
-             )
+            let cur = ref 0 in
+            Ok
+              (fun () ->
+                if !cur < drop_count then (
+                  let index = !cur in
+                  let degree = degrees.(index) in
+                  let data = data_buffer.(index) in
+                  let drop = Drop.make_exn ~index ~degree ~data in
+                  Int_set.iter
+                    (fun i -> Utils.xor_onto ~src:data_blocks.(i) ~onto:data)
+                    (get_data_block_indices param drop);
+                  cur := !cur + 1;
+                  Some drop)
+                else None)
 
   let encode_with_param ?drop_data_buffer param data_blocks =
     match encode_with_param_lazy ?drop_data_buffer param data_blocks with
@@ -96,7 +94,8 @@ module Encode = struct
     | Ok s -> Ok (array_of_gen ~drop_count:(Param.drop_count param) s)
 
   let encode_lazy ?(systematic = true) ?drop_data_buffer ~drop_count
-      (data_blocks : Cstruct.t array) : (Param.t * (unit -> Drop.t option), error) result =
+      (data_blocks : Cstruct.t array) :
+      (Param.t * (unit -> Drop.t option), error) result =
     let data_block_count = Array.length data_blocks in
     match Param.make ~systematic ~data_block_count ~drop_count with
     | Error e -> (

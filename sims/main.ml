@@ -135,6 +135,7 @@ let () =
       ~data_block_size:1300 ~data_loss_rate:0.05 ~rounds:100
   in
   let stats = run setup in
-  Printf.printf "success rate: % 3.3f%%, avg. overhead for successful cases: % 3.3f%%\n"
+  Printf.printf
+    "success rate: % 3.3f%%, avg. overhead for successful cases: % 3.3f%%\n"
     (100.0 *. stats.success_rate)
     (100.0 *. stats.average_overhead)
