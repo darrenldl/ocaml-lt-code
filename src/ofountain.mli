@@ -23,27 +23,11 @@ module Param : sig
     (t, error) result
 end
 
-module Drop : sig
-  type t
+type drop
 
-  type error =
-    [ `Invalid_index
-    | `Invalid_degree
-    | `Invalid_data
-    ]
+val data_of_drop : drop -> Cstruct.t
 
-  val make : index:int -> degree:int -> data:Cstruct.t -> (t, error) result
-
-  val make_exn : index:int -> degree:int -> data:Cstruct.t -> t
-
-  val index : t -> int
-
-  val degree : t -> int
-
-  val data : t -> Cstruct.t
-end
-
-module Drop_set : Set.S with type elt = Drop.t
+module Drop_set : Set.S with type elt = drop
 
 type encode_error =
   [ `Inconsistent_data_block_size
@@ -57,26 +41,26 @@ val encode :
   ?drop_data_buffer:Cstruct.t array ->
   drop_count:int ->
   Cstruct.t array ->
-  (Param.t * Drop.t array, encode_error) result
+  (Param.t * drop array, encode_error) result
 
 val encode_lazy :
   ?systematic:bool ->
   ?drop_data_buffer:Cstruct.t array ->
   drop_count:int ->
   Cstruct.t array ->
-  (Param.t * Drop.t Seq.t, encode_error) result
+  (Param.t * drop Seq.t, encode_error) result
 
 val encode_with_param :
   ?drop_data_buffer:Cstruct.t array ->
   Param.t ->
   Cstruct.t array ->
-  (Drop.t array, encode_error) result
+  (drop array, encode_error) result
 
 val encode_with_param_lazy :
   ?drop_data_buffer:Cstruct.t array ->
   Param.t ->
   Cstruct.t array ->
-  (Drop.t Seq.t, encode_error) result
+  (drop Seq.t, encode_error) result
 
 type decode_error =
   [ `Invalid_drop_index
@@ -95,6 +79,10 @@ val decode :
 
 type decode_ctx
 
+val param_of_decode_ctx : decode_ctx -> Param.t
+
+val data_block_size_of_decode_ctx : decode_ctx -> int
+
 val drop_fill_count_of_decode_ctx : decode_ctx -> int
 
 val data_blocks_of_decode_ctx : decode_ctx -> Cstruct.t array option
@@ -110,4 +98,4 @@ val make_decode_ctx :
   Param.t ->
   (decode_ctx, decode_error) result
 
-val decode_drop : decode_ctx -> Drop.t -> (decode_status, decode_error) result
+val decode_drop : decode_ctx -> drop -> (decode_status, decode_error) result

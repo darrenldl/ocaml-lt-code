@@ -1,5 +1,4 @@
 module Param = Param
-module Drop = Drop
 module Drop_set = Drop_set
 
 let get_data_block_indices (param : Param.t) (t : Drop.t) : Int_set.t =
@@ -338,6 +337,10 @@ let max_drop_count = Constants.max_drop_count
 
 let max_data_block_count = Constants.max_data_block_count
 
+type drop = Drop.t
+
+let data_of_drop = Drop.data
+
 type encode_error = Encode.error
 
 let encode = Encode.encode
@@ -353,6 +356,10 @@ type decode_error = Decode.error
 type decode_ctx = Decode.ctx
 
 type decode_status = Decode.status
+
+let param_of_decode_ctx (ctx : Decode.ctx) = ctx.param
+
+let data_block_size_of_decode_ctx (ctx : Decode.ctx) = ctx.data_block_size
 
 let drop_fill_count_of_decode_ctx (ctx : Decode.ctx) = ctx.graph.drop_fill_count
 
