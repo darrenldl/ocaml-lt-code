@@ -16,9 +16,6 @@ let get_data_block_indices (param : Param.t) (t : Drop.t) : Int_set.t =
     Random.init (Drop.index t);
     aux 0 (Drop.degree t) Int_set.empty)
 
-let array_of_gen ~drop_count gen =
-  Array.init drop_count (fun _ -> Option.get @@ gen ())
-
 module Encode = struct
   type error =
     [ `Inconsistent_data_block_size
@@ -44,8 +41,16 @@ module Encode = struct
     if not systematic then degrees.(Random.int drop_count) <- 1;
     degrees
 
-  let encode_with_param_lazy ?(drop_data_buffer : Cstruct.t array option)
-      (param : Param.t) data_blocks : (unit -> Drop.t option, error) result =
+  type encoder = {
+    param : Param.t;
+    degrees : int array;
+    data_blocks : Cstruct.t array;
+    drop_data_buffer : Cstruct.t array;
+    mutable cur_drop_index : int;
+  }
+
+  let make_encoder ?(drop_data_buffer : Cstruct.t array option)
+    (param : Param.t) data_blocks : (encoder, error) result =
     if Array.length data_blocks <> Param.data_block_count param then
       Error `Invalid_data_block_count
     else
@@ -55,7 +60,7 @@ module Encode = struct
       else
         let drop_count = Param.drop_count param in
         let degrees = gen_degrees param in
-        let data_buffer =
+        let drop_data_buffer =
           match drop_data_buffer with
           | None ->
               Ok
@@ -70,48 +75,52 @@ module Encode = struct
                 Ok buffer)
               else Error `Invalid_drop_data_buffer
         in
-        match data_buffer with
+        match drop_data_buffer with
         | Error e -> Error e
-        | Ok data_buffer ->
-            let cur = ref 0 in
-            Ok
-              (fun () ->
-                if !cur < drop_count then (
-                  let index = !cur in
-                  let degree = degrees.(index) in
-                  let data = data_buffer.(index) in
-                  let drop = Drop.make_exn ~index ~degree ~data in
-                  Int_set.iter
-                    (fun i -> Utils.xor_onto ~src:data_blocks.(i) ~onto:data)
-                    (get_data_block_indices param drop);
-                  cur := !cur + 1;
-                  Some drop)
-                else None)
+        | Ok drop_data_buffer ->
+            Ok {
+              param;
+              degrees;
+              drop_data_buffer;
+              data_blocks;
+              cur_drop_index = 0;
+  }
 
-  let encode_with_param ?drop_data_buffer param data_blocks =
-    match encode_with_param_lazy ?drop_data_buffer param data_blocks with
-    | Error e -> Error e
-    | Ok s -> Ok (array_of_gen ~drop_count:(Param.drop_count param) s)
+  let reset_encoder (encoder : encoder) : unit =
+    Utils.zero_cstruct_array encoder.drop_data_buffer;
+    encoder.cur_drop_index <- 0
 
-  let encode_lazy ?(systematic = true) ?drop_data_buffer ~drop_count
-      (data_blocks : Cstruct.t array) :
-      (Param.t * (unit -> Drop.t option), error) result =
-    let data_block_count = Array.length data_blocks in
-    match Param.make ~systematic ~data_block_count ~drop_count with
+  let encode_one_drop (encoder : encoder) : Drop.t option =
+    let drop_count = Param.drop_count encoder.param in
+    let index = encoder.cur_drop_index in
+    if index < drop_count then (
+      let degree = encoder.degrees.(index) in
+      let drop_data = encoder.drop_data_buffer.(index) in
+      let drop = Drop.make_exn ~index ~degree ~data:drop_data in
+      Int_set.iter
+        (fun i -> Utils.xor_onto ~src:encoder.data_blocks.(i) ~onto:drop_data)
+        (get_data_block_indices encoder.param drop);
+      encoder.cur_drop_index <- encoder.cur_drop_index + 1;
+      Some drop
+        )
+    else None
+
+  let encode ?(systematic = true) ?drop_data_buffer ~drop_count
+      (data_blocks : Cstruct.t array) : (Param.t * Drop.t array, error) result =
+    match Param.make ~systematic ~data_block_count:(Array.length data_blocks) ~drop_count with
     | Error e -> (
         match e with
         | (`Invalid_data_block_count | `Invalid_drop_count) as e ->
             Error (e :> error))
-    | Ok param -> (
-        match encode_with_param_lazy ?drop_data_buffer param data_blocks with
-        | Error e -> Error e
-        | Ok drops -> Ok (param, drops))
-
-  let encode ?systematic ?drop_data_buffer ~drop_count
-      (data_blocks : Cstruct.t array) : (Param.t * Drop.t array, error) result =
-    match encode_lazy ?systematic ?drop_data_buffer ~drop_count data_blocks with
-    | Error e -> Error e
-    | Ok (param, g) -> Ok (param, array_of_gen ~drop_count g)
+    | Ok param ->
+      match make_encoder ?drop_data_buffer param data_blocks with
+      | Error e -> Error (e :> error)
+      | Ok encoder ->
+        let arr = Array.init drop_count (fun _ ->
+          Option.get @@ encode_one_drop encoder
+      )
+        in
+        Ok (param, arr)
 end
 
 module Decode = struct
@@ -147,6 +156,13 @@ module Decode = struct
         drop_edges = Array.make (Param.drop_count param) Int_set.empty;
       }
 
+    let reset (g : t) : unit =
+      Utils.fill_array false g.data_block_is_solved;
+      g.data_block_solved_count <- 0;
+      g.drop_fill_count <- 0;
+      Utils.fill_array Int_set.empty g.data_edges;
+      Utils.fill_array Int_set.empty g.drop_edges
+
     let remove_edge ~drop_index ~data_index (g : t) : unit =
       g.drop_edges.(drop_index) <-
         Int_set.remove data_index g.drop_edges.(drop_index);
@@ -172,7 +188,7 @@ module Decode = struct
       Int_set.cardinal g.drop_edges.(drop_index)
   end
 
-  type ctx = {
+  type decoder = {
     param : Param.t;
     graph : Graph.t;
     data_block_size : int;
@@ -180,7 +196,7 @@ module Decode = struct
     drops : Cstruct.t option array;
   }
 
-  let make_ctx ?data_block_buffer ~data_block_size param : (ctx, error) result =
+  let make_decoder ?data_block_buffer ~data_block_size param : (decoder, error) result =
     let data_block_count = Param.data_block_count param in
     if data_block_size < 0 then Error `Invalid_data_block_size
     else
@@ -212,32 +228,37 @@ module Decode = struct
               drops = Array.make (Param.drop_count param) None;
             }
 
-  let add_drop (drop : Drop.t) (ctx : ctx) : unit =
-    ctx.drops.(Drop.index drop) <- Some (Drop.data drop);
-    Graph.add_drop drop ctx.graph
+    let reset_decoder (decoder : decoder) : unit =
+      Graph.reset decoder.graph;
+      Utils.zero_cstruct_array decoder.data_blocks;
+      Utils.fill_array None decoder.drops
 
-  let remove_solved_drop_edges ~drop_index (ctx : ctx) : unit =
+  let add_drop (drop : Drop.t) (decoder : decoder) : unit =
+    decoder.drops.(Drop.index drop) <- Some (Drop.data drop);
+    Graph.add_drop drop decoder.graph
+
+  let remove_solved_drop_edges ~drop_index (decoder : decoder) : unit =
     (* this essentially catches up the missed data propagation *)
-    let data_indices = ctx.graph.drop_edges.(drop_index) in
+    let data_indices = decoder.graph.drop_edges.(drop_index) in
     Int_set.iter
       (fun data_index ->
-        if ctx.graph.data_block_is_solved.(data_index) then (
+        if decoder.graph.data_block_is_solved.(data_index) then (
           Utils.xor_onto
-            ~src:ctx.data_blocks.(data_index)
-            ~onto:(Option.get ctx.drops.(drop_index));
-          Graph.remove_edge ~drop_index ~data_index ctx.graph))
+            ~src:decoder.data_blocks.(data_index)
+            ~onto:(Option.get decoder.drops.(drop_index));
+          Graph.remove_edge ~drop_index ~data_index decoder.graph))
       data_indices
 
-  let propagate_data_xor ~data_index (ctx : ctx) : unit =
-    let data = ctx.data_blocks.(data_index) in
+  let propagate_data_xor ~data_index (decoder : decoder) : unit =
+    let data = decoder.data_blocks.(data_index) in
     Int_set.iter
       (fun drop_index ->
         Option.iter
           (fun onto ->
             Utils.xor_onto ~src:data ~onto;
-            Graph.remove_edge ~drop_index ~data_index ctx.graph)
-          ctx.drops.(drop_index))
-      ctx.graph.data_edges.(data_index)
+            Graph.remove_edge ~drop_index ~data_index decoder.graph)
+          decoder.drops.(drop_index))
+      decoder.graph.data_edges.(data_index)
 
   type reduction_one_step_status =
     [ `Success
@@ -245,27 +266,27 @@ module Decode = struct
     | `Need_more_drops
     ]
 
-  let reduce_one_step (ctx : ctx) : reduction_one_step_status =
+  let reduce_one_step (decoder : decoder) : reduction_one_step_status =
     let degree_1_found = ref false in
     Array.iteri
       (fun drop_index drop ->
         match drop with
         | None -> ()
         | Some drop_data ->
-            if Graph.degree_of_drop ~drop_index ctx.graph = 1 then (
+            if Graph.degree_of_drop ~drop_index decoder.graph = 1 then (
               degree_1_found := true;
               let data_index =
-                Int_set.choose ctx.graph.drop_edges.(drop_index)
+                Int_set.choose decoder.graph.drop_edges.(drop_index)
               in
-              if not ctx.graph.data_block_is_solved.(data_index) then (
+              if not decoder.graph.data_block_is_solved.(data_index) then (
                 Cstruct.blit drop_data 0
-                  ctx.data_blocks.(data_index)
-                  0 ctx.data_block_size;
-                Graph.mark_data_as_solved ~data_index ctx.graph;
-                propagate_data_xor ~data_index ctx)))
-      ctx.drops;
+                  decoder.data_blocks.(data_index)
+                  0 decoder.data_block_size;
+                Graph.mark_data_as_solved ~data_index decoder.graph;
+                propagate_data_xor ~data_index decoder)))
+      decoder.drops;
     if !degree_1_found then `Ongoing
-    else if ctx.graph.data_block_solved_count = Param.data_block_count ctx.param
+    else if decoder.graph.data_block_solved_count = Param.data_block_count decoder.param
     then `Success
     else `Need_more_drops
 
@@ -274,9 +295,9 @@ module Decode = struct
     | `Need_more_drops
     ]
 
-  let reduce (ctx : ctx) : reduction_status =
+  let reduce (decoder : decoder) : reduction_status =
     let rec aux () =
-      match reduce_one_step ctx with
+      match reduce_one_step decoder with
       | (`Success | `Need_more_drops) as s -> (s :> reduction_status)
       | `Ongoing -> aux ()
     in
@@ -287,29 +308,29 @@ module Decode = struct
     | `Ongoing
     ]
 
-  let data_is_ready (ctx : ctx) : bool =
-    ctx.graph.data_block_solved_count = Param.data_block_count ctx.param
+  let data_is_ready (decoder : decoder) : bool =
+    decoder.graph.data_block_solved_count = Param.data_block_count decoder.param
 
-  let max_tries_reached (ctx : ctx) : bool =
-    ctx.graph.drop_fill_count = Param.drop_count ctx.param
+  let max_tries_reached (decoder : decoder) : bool =
+    decoder.graph.drop_fill_count = Param.drop_count decoder.param
 
-  let decode_drop (ctx : ctx) (drop : Drop.t) : (status, error) result =
-    if Cstruct.length (Drop.data drop) <> ctx.data_block_size then
+  let decode_one_drop (decoder : decoder) (drop : Drop.t) : (status, error) result =
+    if Cstruct.length (Drop.data drop) <> decoder.data_block_size then
       Error `Invalid_drop_size
     else
       let drop_index = Drop.index drop in
-      if data_is_ready ctx then Ok (`Success ctx.data_blocks)
-      else if max_tries_reached ctx then Error `Cannot_recover
+      if data_is_ready decoder then Ok (`Success decoder.data_blocks)
+      else if max_tries_reached decoder then Error `Cannot_recover
       else
-        match ctx.drops.(drop_index) with
+        match decoder.drops.(drop_index) with
         | Some _ -> Ok `Ongoing
         | None -> (
-            add_drop drop ctx;
-            remove_solved_drop_edges ~drop_index ctx;
-            match reduce ctx with
-            | `Success -> Ok (`Success ctx.data_blocks)
+            add_drop drop decoder;
+            remove_solved_drop_edges ~drop_index decoder;
+            match reduce decoder with
+            | `Success -> Ok (`Success decoder.data_blocks)
             | `Need_more_drops ->
-                if max_tries_reached ctx then Error `Cannot_recover
+                if max_tries_reached decoder then Error `Cannot_recover
                 else Ok `Ongoing)
 
   let decode ?data_block_buffer (param : Param.t) (drops : Drop_set.t) :
@@ -317,16 +338,16 @@ module Decode = struct
     if Drop_set.cardinal drops = 0 then Error `Cannot_recover
     else
       match
-        make_ctx
+        make_decoder
           ~data_block_size:(Cstruct.length @@ Drop.data @@ Drop_set.choose drops)
           ?data_block_buffer param
       with
       | Error e -> Error e
-      | Ok ctx -> (
+      | Ok decoder -> (
           let x = Drop_set.choose drops in
           let drops = Drop_set.remove x drops in
-          Drop_set.iter (fun drop -> decode_drop ctx drop |> ignore) drops;
-          match decode_drop ctx x with
+          Drop_set.iter (fun drop -> decode_one_drop decoder drop |> ignore) drops;
+          match decode_one_drop decoder x with
           | Error e -> Error e
           | Ok `Ongoing -> Error `Cannot_recover
           | Ok (`Success arr) -> Ok arr)
@@ -342,31 +363,35 @@ let data_of_drop = Drop.data
 
 type encode_error = Encode.error
 
+type encoder = Encode.encoder
+
+let make_encoder = Encode.make_encoder
+
+let reset_encoder = Encode.reset_encoder
+
+let encode_one_drop = Encode.encode_one_drop
+
 let encode = Encode.encode
-
-let encode_lazy = Encode.encode_lazy
-
-let encode_with_param = Encode.encode_with_param
-
-let encode_with_param_lazy = Encode.encode_with_param_lazy
 
 type decode_error = Decode.error
 
-type decode_ctx = Decode.ctx
+type decoder = Decode.decoder
 
 type decode_status = Decode.status
 
-let param_of_decode_ctx (ctx : Decode.ctx) = ctx.param
+let make_decoder = Decode.make_decoder
 
-let data_block_size_of_decode_ctx (ctx : Decode.ctx) = ctx.data_block_size
+let reset_decoder = Decode.reset_decoder
 
-let drop_fill_count_of_decode_ctx (ctx : Decode.ctx) = ctx.graph.drop_fill_count
+let param_of_decoder (decoder : Decode.decoder) = decoder.param
 
-let data_blocks_of_decode_ctx (ctx : Decode.ctx) : Cstruct.t array option =
-  if Decode.data_is_ready ctx then Some ctx.data_blocks else None
+let data_block_size_of_decoder (decoder : Decode.decoder) = decoder.data_block_size
 
-let make_decode_ctx = Decode.make_ctx
+let drop_fill_count_of_decoder (decoder : Decode.decoder) = decoder.graph.drop_fill_count
 
-let decode_drop = Decode.decode_drop
+let data_blocks_of_decoder (decoder : Decode.decoder) : Cstruct.t array option =
+  if Decode.data_is_ready decoder then Some decoder.data_blocks else None
+
+let decode_one_drop = Decode.decode_one_drop
 
 let decode = Decode.decode

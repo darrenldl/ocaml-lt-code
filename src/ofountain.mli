@@ -36,31 +36,28 @@ type encode_error =
   | `Invalid_drop_data_buffer
   ]
 
+type encoder
+
+val make_encoder :
+  ?drop_data_buffer:Cstruct.t array ->
+  Param.t ->
+  Cstruct.t array ->
+  (encoder, encode_error) result
+
+val reset_encoder :
+  encoder ->
+  unit
+
+val encode_one_drop :
+  encoder ->
+  drop option
+
 val encode :
   ?systematic:bool ->
   ?drop_data_buffer:Cstruct.t array ->
   drop_count:int ->
   Cstruct.t array ->
   (Param.t * drop array, encode_error) result
-
-val encode_lazy :
-  ?systematic:bool ->
-  ?drop_data_buffer:Cstruct.t array ->
-  drop_count:int ->
-  Cstruct.t array ->
-  (Param.t * (unit -> drop option), encode_error) result
-
-val encode_with_param :
-  ?drop_data_buffer:Cstruct.t array ->
-  Param.t ->
-  Cstruct.t array ->
-  (drop array, encode_error) result
-
-val encode_with_param_lazy :
-  ?drop_data_buffer:Cstruct.t array ->
-  Param.t ->
-  Cstruct.t array ->
-  (unit -> drop option, encode_error) result
 
 type decode_error =
   [ `Invalid_drop_index
@@ -77,25 +74,27 @@ val decode :
   Drop_set.t ->
   (Cstruct.t array, decode_error) result
 
-type decode_ctx
+type decoder
 
-val param_of_decode_ctx : decode_ctx -> Param.t
+val reset_decoder : decoder -> unit
 
-val data_block_size_of_decode_ctx : decode_ctx -> int
+val param_of_decoder : decoder -> Param.t
 
-val drop_fill_count_of_decode_ctx : decode_ctx -> int
+val data_block_size_of_decoder : decoder -> int
 
-val data_blocks_of_decode_ctx : decode_ctx -> Cstruct.t array option
+val drop_fill_count_of_decoder : decoder -> int
+
+val data_blocks_of_decoder : decoder -> Cstruct.t array option
 
 type decode_status =
   [ `Success of Cstruct.t array
   | `Ongoing
   ]
 
-val make_decode_ctx :
+val make_decoder :
   ?data_block_buffer:Cstruct.t array ->
   data_block_size:int ->
   Param.t ->
-  (decode_ctx, decode_error) result
+  (decoder, decode_error) result
 
-val decode_drop : decode_ctx -> drop -> (decode_status, decode_error) result
+val decode_one_drop : decoder -> drop -> (decode_status, decode_error) result

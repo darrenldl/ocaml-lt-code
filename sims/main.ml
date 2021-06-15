@@ -133,7 +133,7 @@ let run (setup : setup) : combined_stats =
 let () =
   let setup =
     make_setup ~systematic:false ~data_block_count:100 ~max_redundancy:2.0
-      ~data_block_size:1300 ~data_loss_rate:0.05 ~rounds:100
+      ~data_block_size:1300 ~data_loss_rate:0.10 ~rounds:100
   in
   let stats = run setup in
   Printf.printf
