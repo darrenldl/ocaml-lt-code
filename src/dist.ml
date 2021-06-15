@@ -11,8 +11,6 @@ let ideal_soliton_weights ~k : float array =
   done;
   arr
 
-let failure_probability = 0.01
-
 let of_weights (weights : float array) : t =
   let total_weight =
     CCArray.foldi
@@ -25,7 +23,8 @@ let of_weights (weights : float array) : t =
 
 let robust_soliton_dist ~k : t =
   assert (k > 0);
-  let c = 1.0 in
+  let failure_probability = 0.01 in
+  let c = 0.001 in
   let k' = float_of_int k in
   let r = c *. log (k' /. failure_probability) *. sqrt k' in
   let k_div_r = int_of_float (k' /. r) in
