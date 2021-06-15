@@ -133,11 +133,24 @@ let run (setup : setup) : combined_stats =
 
 let () =
   let setup =
-    make_setup ~systematic:false ~data_block_count:100 ~max_redundancy:2.0
+    make_setup ~systematic:false ~data_block_count:100 ~max_redundancy:1.0
       ~data_block_size:1300 ~data_loss_rate:0.10 ~rounds:100
   in
   let stats = run setup in
+  let data_block_count = Ofountain.data_block_count_of_encoder setup.encoder in
+  let drop_count_limit = Ofountain.drop_count_limit_of_encoder setup.encoder in
+  let redundancy =
+    100.0
+    *. (float_of_int (drop_count_limit - data_block_count)
+       /. float_of_int data_block_count)
+  in
+  Printf.printf "systematic: %b\n"
+    (Ofountain.encoder_is_systematic setup.encoder);
   Printf.printf
-    "success rate: % 3.3f%%, avg. overhead for successful cases: % 3.3f%%\n"
+    "data block count: %d, drop count limit: %d (%3.3f%% redundancy), data \
+     block size: %d\n"
+    data_block_count drop_count_limit redundancy setup.data_block_size;
+  Printf.printf
+    "success rate: %3.3f%%, avg. overhead for successful cases: %3.3f%%\n"
     (100.0 *. stats.success_rate)
     (100.0 *. stats.average_overhead)

@@ -380,6 +380,9 @@ let reset_encoder = Encode.reset_encoder
 
 let param_of_encoder (encoder : Encode.encoder) = encoder.param
 
+let encoder_is_systematic (encoder : Encode.encoder) =
+  Param.systematic encoder.param
+
 let data_block_count_of_encoder (encoder : Encode.encoder) =
   Param.data_block_count encoder.param
 
@@ -406,6 +409,9 @@ let make_decoder = Decode.make_decoder
 let reset_decoder = Decode.reset_decoder
 
 let param_of_decoder (decoder : Decode.decoder) = decoder.param
+
+let decoder_is_systematic (decoder : Decode.decoder) =
+  Param.systematic decoder.param
 
 let data_block_count_of_decoder (decoder : Decode.decoder) =
   Param.data_block_count decoder.param

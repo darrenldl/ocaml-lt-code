@@ -48,6 +48,8 @@ val reset_encoder : encoder -> unit
 
 val param_of_encoder : encoder -> Param.t
 
+val encoder_is_systematic : encoder -> bool
+
 val data_block_count_of_encoder : encoder -> int
 
 val drop_count_limit_of_encoder : encoder -> int
@@ -85,6 +87,8 @@ type decoder
 val reset_decoder : decoder -> unit
 
 val param_of_decoder : decoder -> Param.t
+
+val decoder_is_systematic : decoder -> bool
 
 val data_block_count_of_decoder : decoder -> int
 
