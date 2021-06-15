@@ -215,6 +215,7 @@ module Decode = struct
             }
 
   let remove_solved_drop_edges ~drop_index (ctx : ctx) : unit =
+    (* this essentially catches up the missed data propagation *)
     let data_indices = ctx.graph.drop_edges.(drop_index) in
     Int_set.iter
       (fun data_index ->
