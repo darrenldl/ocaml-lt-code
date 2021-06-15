@@ -36,7 +36,7 @@ let make_setup ~systematic ~data_block_count ~redundancy ~data_block_size
   assert (0.0 <= data_loss_rate);
   { param; data_block_size; data_loss_rate; rounds }
 
-let run_once ~data_block_buffer (setup : setup) data_blocks drops : stats =
+let run_once ~data_block_buffer ~drop_data_buffer (setup : setup) data_blocks : stats =
   let rec aux (original_data_blocks : Cstruct.t array)
       (decode_ctx : Ofountain.decode_ctx) (stats : stats)
       (drops : Ofountain.drop Seq.t) : stats =
@@ -55,12 +55,21 @@ let run_once ~data_block_buffer (setup : setup) data_blocks drops : stats =
                      (Ofountain.param_of_decode_ctx decode_ctx)
                    - 1
               do
+                if not (Cstruct.equal arr.(i) original_data_blocks.(i)) then (
+                Fmt.pr "recovered: %a\n" Cstruct.hexdump_pp arr.(i);
+                Fmt.pr "original:  %a\n" Cstruct.hexdump_pp original_data_blocks.(i);
+                );
                 assert (Cstruct.equal arr.(i) original_data_blocks.(i))
               done;
               { stats with success = true }
           | Ok `Ongoing -> aux original_data_blocks decode_ctx stats xs
           | Error `Cannot_recover -> stats
           | Error _ -> failwith "Unexpected case")
+  in
+  let drops =
+    Result.get_ok
+    @@ Ofountain.encode_with_param_lazy ~drop_data_buffer setup.param
+         data_blocks
   in
   let decode_ctx =
     Result.get_ok
@@ -88,14 +97,10 @@ let run (setup : setup) : combined_stats =
     Array.init (Ofountain.Param.drop_count setup.param) (fun _ ->
         Cstruct.create setup.data_block_size)
   in
-  let drops =
-    Result.get_ok
-    @@ Ofountain.encode_with_param_lazy ~drop_data_buffer setup.param
-         data_blocks
-  in
   let stats_collection =
-    Array.init setup.rounds (fun _ ->
-        run_once ~data_block_buffer setup data_blocks drops)
+    Array.init setup.rounds (fun i ->
+      Printf.printf "round: %d\n" i;
+        run_once ~data_block_buffer ~drop_data_buffer setup data_blocks)
   in
   let data_block_count =
     float_of_int @@ Ofountain.Param.data_block_count setup.param
@@ -124,8 +129,8 @@ let run (setup : setup) : combined_stats =
 
 let () =
   let setup =
-    make_setup ~systematic:false ~data_block_count:1000 ~redundancy:2.0
-      ~data_block_size:1_000 ~data_loss_rate:0.0 ~rounds:10
+    make_setup ~systematic:true ~data_block_count:10 ~redundancy:0.3
+      ~data_block_size:100 ~data_loss_rate:0.01 ~rounds:100
   in
   let stats = run setup in
   Printf.printf "success rate: % 3.3f%%, avg. overhead: % 3.3f%%\n"
