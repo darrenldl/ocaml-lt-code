@@ -120,10 +120,10 @@ module Decode = struct
   type error =
     [ `Invalid_drop_index
     | `Invalid_drop_count
-    | `Insufficient_drops
     | `Invalid_data_block_buffer
     | `Invalid_data_block_size
     | `Invalid_drop_size
+    | `Cannot_recover
     ]
 
   module Graph = struct
@@ -214,6 +214,10 @@ module Decode = struct
               drops = Array.make (Param.drop_count param) None;
             }
 
+  let add_drop (drop : Drop.t) (ctx : ctx) : unit =
+    ctx.drops.(Drop.index drop) <- Some (Drop.data drop);
+    Graph.add_drop drop ctx.graph
+
   let remove_solved_drop_edges ~drop_index (ctx : ctx) : unit =
     (* this essentially catches up the missed data propagation *)
     let data_indices = ctx.graph.drop_edges.(drop_index) in
@@ -293,21 +297,23 @@ module Decode = struct
       if ctx.graph.data_block_solved_count = Param.data_block_count ctx.param
       then Ok (`Success ctx.data_blocks)
       else if ctx.graph.drop_fill_count = Param.drop_count ctx.param then
-        Error `Insufficient_drops
+        Error `Cannot_recover
       else
         match ctx.drops.(drop_index) with
         | Some _ -> Ok `Ongoing
         | None -> (
-            ctx.drops.(drop_index) <- Some (Drop.data drop);
-            Graph.add_drop drop ctx.graph;
+            add_drop drop ctx;
             remove_solved_drop_edges ~drop_index ctx;
             match reduce ctx with
             | `Success -> Ok (`Success ctx.data_blocks)
-            | `Need_more_drops -> Ok `Ongoing)
+            | `Need_more_drops ->
+                if ctx.graph.drop_fill_count = Param.drop_count ctx.param then
+                  Error `Cannot_recover
+                else Ok `Ongoing)
 
   let decode ?data_block_buffer (param : Param.t) (drops : Drop_set.t) :
       (Cstruct.t array, error) result =
-    if Drop_set.cardinal drops = 0 then Error `Insufficient_drops
+    if Drop_set.cardinal drops = 0 then Error `Cannot_recover
     else
       match
         make_ctx
@@ -321,7 +327,7 @@ module Decode = struct
           Drop_set.iter (fun drop -> decode_drop ctx drop |> ignore) drops;
           match decode_drop ctx x with
           | Error e -> Error e
-          | Ok `Ongoing -> Error `Insufficient_drops
+          | Ok `Ongoing -> Error `Cannot_recover
           | Ok (`Success arr) -> Ok arr)
 end
 
