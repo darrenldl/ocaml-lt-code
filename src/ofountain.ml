@@ -32,14 +32,15 @@ module Encode = struct
       if systematic then (
         let degrees = Array.make max_drop_count 1 in
         let n = max_drop_count - data_block_count in
-        let degrees' = Dist.choose_n (Param.dist param) n in
-        (* we amplify the coverage of the parity drops *)
-        let parity_to_data_ratio = (data_block_count + n - 1) / n in
-        let multiplier = parity_to_data_ratio * 20 in
-        for i = 0 to n - 1 do
-          degrees'.(i) <- min data_block_count (degrees'.(i) * multiplier)
-        done;
-        Array.blit degrees' 0 degrees data_block_count n;
+        if n > 0 then (
+          let degrees' = Dist.choose_n (Param.dist param) n in
+          (* we amplify the coverage of the parity drops *)
+          let parity_to_data_ratio = (data_block_count + n - 1) / n in
+          let multiplier = parity_to_data_ratio * 20 in
+          for i = 0 to n - 1 do
+            degrees'.(i) <- min data_block_count (degrees'.(i) * multiplier)
+          done;
+          Array.blit degrees' 0 degrees data_block_count n);
         degrees)
       else Dist.choose_n (Param.dist param) max_drop_count
     in
