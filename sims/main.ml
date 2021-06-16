@@ -35,9 +35,9 @@ type combined_stats = {
 }
 
 let time_function (f : unit -> 'a) : float * 'a =
-  let start = Sys.time () in
+  let start = Unix.gettimeofday () in
   let res = f () in
-  let end_exc = Sys.time () in
+  let end_exc = Unix.gettimeofday () in
   (end_exc -. start, res)
 
 let empty_stats =
@@ -242,8 +242,8 @@ let print_stats (setup : setup) (stats : combined_stats) =
 
 let () =
   let setup =
-    make_setup ~systematic:false ~data_block_count:100 ~max_redundancy:1.0
-      ~data_block_size:1300 ~data_loss_rate:0.30 ~rounds:100
+    make_setup ~systematic:true ~data_block_count:100 ~max_redundancy:0.5
+      ~data_block_size:1300 ~data_loss_rate:0.02 ~rounds:200
   in
   let stats = run setup in
   print_setup setup;
