@@ -28,17 +28,17 @@ let empty_stats_sum = { total_overhead = 0.0; total_success_count = 0 }
 
 let make_setup ~systematic ~data_block_count ~max_redundancy ~data_block_size
     ~data_loss_rate ~rounds =
-  let drop_count_limit =
+  let max_drop_count =
     data_block_count
     + int_of_float (max_redundancy *. float_of_int data_block_count)
   in
   let param =
     Result.get_ok
-    @@ Ofountain.Param.make ~systematic ~data_block_count ~drop_count_limit
+    @@ Ofountain.Param.make ~systematic ~data_block_count ~max_drop_count
   in
   assert (0.0 <= data_loss_rate);
   let drop_data_buffer =
-    Array.init (Ofountain.Param.drop_count_limit param) (fun _ ->
+    Array.init (Ofountain.Param.max_drop_count param) (fun _ ->
         Cstruct.create data_block_size)
   in
   let data_blocks =
@@ -138,10 +138,10 @@ let () =
   in
   let stats = run setup in
   let data_block_count = Ofountain.data_block_count_of_encoder setup.encoder in
-  let drop_count_limit = Ofountain.drop_count_limit_of_encoder setup.encoder in
+  let max_drop_count = Ofountain.max_drop_count_of_encoder setup.encoder in
   let redundancy =
     100.0
-    *. (float_of_int (drop_count_limit - data_block_count)
+    *. (float_of_int (max_drop_count - data_block_count)
        /. float_of_int data_block_count)
   in
   Printf.printf "systematic: %b\n"
@@ -149,7 +149,7 @@ let () =
   Printf.printf
     "data block count: %d, drop count limit: %d (%3.3f%% redundancy), data \
      block size: %d\n"
-    data_block_count drop_count_limit redundancy setup.data_block_size;
+    data_block_count max_drop_count redundancy setup.data_block_size;
   Printf.printf "data loss rate: %3.3f%%, rounds: %d\n"
     (100.0 *. setup.data_loss_rate)
     setup.rounds;

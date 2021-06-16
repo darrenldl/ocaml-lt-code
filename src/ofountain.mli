@@ -14,12 +14,12 @@ module Param : sig
 
   val data_block_count : t -> int
 
-  val drop_count_limit : t -> int
+  val max_drop_count : t -> int
 
   val make :
     systematic:bool ->
     data_block_count:int ->
-    drop_count_limit:int ->
+    max_drop_count:int ->
     (t, error) result
 end
 
@@ -52,7 +52,7 @@ val encoder_is_systematic : encoder -> bool
 
 val data_block_count_of_encoder : encoder -> int
 
-val drop_count_limit_of_encoder : encoder -> int
+val max_drop_count_of_encoder : encoder -> int
 
 val data_block_size_of_encoder : encoder -> int
 
@@ -63,7 +63,7 @@ val encode_one_drop : encoder -> drop option
 val encode :
   ?systematic:bool ->
   ?drop_data_buffer:Cstruct.t array ->
-  drop_count_limit:int ->
+  max_drop_count:int ->
   Cstruct.t array ->
   (Param.t * drop array, encode_error) result
 
@@ -92,7 +92,7 @@ val decoder_is_systematic : decoder -> bool
 
 val data_block_count_of_decoder : decoder -> int
 
-val drop_count_limit_of_decoder : decoder -> int
+val max_drop_count_of_decoder : decoder -> int
 
 val data_block_size_of_decoder : decoder -> int
 
