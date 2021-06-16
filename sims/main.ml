@@ -108,10 +108,10 @@ let run_once (setup : setup) : stats =
     | None -> stats
     | Some x -> (
         Random.self_init ();
+        let stats = { stats with drops_used = stats.drops_used + 1 } in
         if Random.float 1.0 < setup.data_loss_rate then
           aux data_blocks_copy stats
         else
-          let stats = { stats with drops_used = stats.drops_used + 1 } in
           let decoding_time, decode_res =
             time_function (fun () -> Ofountain.decode_one_drop setup.decoder x)
           in
@@ -188,40 +188,43 @@ let run (setup : setup) : combined_stats =
     success_rate = float_of_int sum.total_success_count /. rounds;
   }
 
+let calc_redundancy (setup : setup) : float =
+  let data_block_count = Ofountain.data_block_count_of_encoder setup.encoder in
+  let max_drop_count = Ofountain.max_drop_count_of_encoder setup.encoder in
+  100.0
+  *. (float_of_int (max_drop_count - data_block_count)
+     /. float_of_int data_block_count)
+
 let print_setup (setup : setup) =
   let data_block_count = Ofountain.data_block_count_of_encoder setup.encoder in
   let max_drop_count = Ofountain.max_drop_count_of_encoder setup.encoder in
-  let redundancy =
-    100.0
-    *. (float_of_int (max_drop_count - data_block_count)
-       /. float_of_int data_block_count)
-  in
-  Printf.printf "setup:\n";
-  Printf.printf "  systematic:       %b\n"
+  let redundancy = calc_redundancy setup in
+  Printf.printf "  setup:\n";
+  Printf.printf "    systematic:       %b\n"
     (Ofountain.encoder_is_systematic setup.encoder);
-  Printf.printf "  data block count: %d\n" data_block_count;
-  Printf.printf "  max drop count:   %d\n" max_drop_count;
-  Printf.printf "  data block size:  %d\n" setup.data_block_size;
-  Printf.printf "  redundancy:       %7.3f%%\n" redundancy;
-  Printf.printf "  data loss rate:   %7.3f%%\n" (100.0 *. setup.data_loss_rate);
-  Printf.printf "  rounds:           %d\n" setup.rounds
+  Printf.printf "    data block count: %d\n" data_block_count;
+  Printf.printf "    max drop count:   %d\n" max_drop_count;
+  Printf.printf "    data block size:  %d\n" setup.data_block_size;
+  Printf.printf "    redundancy:       %7.3f%%\n" redundancy;
+  Printf.printf "    data loss rate:   %7.3f%%\n" (100.0 *. setup.data_loss_rate);
+  Printf.printf "    rounds:           %d\n" setup.rounds
 
 let print_stats (setup : setup) (stats : combined_stats) =
   let s_to_us_multiplier = 1_000_000.0 in
-  Printf.printf "stats:\n";
-  Printf.printf "  encoder setup time:              %10.3fus\n"
+  Printf.printf "  stats:\n";
+  Printf.printf "    encoder setup time:              %10.3fus\n"
     (s_to_us_multiplier *. stats.encoder_setup_time);
-  Printf.printf "  decoder setup time:              %10.3fus\n"
+  Printf.printf "    decoder setup time:              %10.3fus\n"
     (s_to_us_multiplier *. stats.decoder_setup_time);
-  Printf.printf "  average encoding time per round: %10.3fus\n"
+  Printf.printf "    average encoding time per round: %10.3fus\n"
     (s_to_us_multiplier *. stats.average_encoding_time);
-  Printf.printf "  average decoding time per round: %10.3fus\n"
+  Printf.printf "    average decoding time per round: %10.3fus\n"
     (s_to_us_multiplier *. stats.average_decoding_time);
-  Printf.printf "  average encoding time per drop:  %10.3fus\n"
+  Printf.printf "    average encoding time per drop:  %10.3fus\n"
     (s_to_us_multiplier
     *. stats.average_encoding_time
     /. stats.average_drops_used);
-  Printf.printf "  average decoding time per drop:  %10.3fus\n"
+  Printf.printf "    average decoding time per drop:  %10.3fus\n"
     (s_to_us_multiplier
     *. stats.average_decoding_time
     /. stats.average_drops_used);
@@ -229,21 +232,32 @@ let print_stats (setup : setup) (stats : combined_stats) =
     float_of_int
       (setup.data_block_size * Ofountain.Param.data_block_count setup.param)
   in
-  Printf.printf "  average data Mbytes/s:           %10.3f\n"
+  Printf.printf "    average data Mbytes/s:           %10.3f\n"
     (data_byte_count_per_round
     /. 1024.0
     /. 1024.0
     /. stats.average_encoding_time);
-  Printf.printf "  success rate:                    %10.3f%%\n"
+  Printf.printf "    success rate:                    %10.3f%%\n"
     (100.0 *. stats.success_rate);
-  Printf.printf "  average overhead:                %10.3f%%\n"
+  Printf.printf "    average overhead:                %10.3f%%\n"
     (100.0 *. stats.average_overhead)
 
-let () =
-  let setup =
-    make_setup ~systematic:false ~data_block_count:1000 ~max_redundancy:0.30
-      ~data_block_size:1300 ~data_loss_rate:0.01 ~rounds:100
-  in
+let run_and_print (setup : setup) =
   let stats = run setup in
+  let redundancy = calc_redundancy setup in
+  Printf.printf "Simulation at %.1f data loss rate, redundancy at %.1f, %s\n"
+    (100.0 *. setup.data_loss_rate)
+    (100.0 *. redundancy)
+    (if Ofountain.Param.systematic setup.param then "systematic"
+    else "non-systematic");
   print_setup setup;
   print_stats setup stats
+
+let () =
+  let setups =
+    [
+      make_setup ~systematic:false ~data_block_count:1000 ~max_redundancy:0.40
+        ~data_block_size:1300 ~data_loss_rate:0.05 ~rounds:100;
+    ]
+  in
+  List.iter run_and_print setups
