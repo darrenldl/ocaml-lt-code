@@ -162,20 +162,19 @@ let run (setup : setup) : combined_stats =
   let sum =
     Array.fold_left
       (fun sum stats ->
-        if stats.success then (
-          let overhead =
-            (float_of_int stats.drops_used -. data_block_count)
-            /. data_block_count
-          in
-          assert (overhead >= 0.0);
-          {
-            total_encoding_time = sum.total_encoding_time +. stats.encoding_time;
-            total_decoding_time = sum.total_decoding_time +. stats.decoding_time;
-            total_drops_used = sum.total_drops_used + stats.drops_used;
-            total_overhead = sum.total_overhead +. overhead;
-            total_success_count = sum.total_success_count + 1;
-          })
-        else sum)
+        let overhead =
+          (float_of_int stats.drops_used -. data_block_count)
+          /. data_block_count
+        in
+        assert (overhead >= 0.0);
+        {
+          total_encoding_time = sum.total_encoding_time +. stats.encoding_time;
+          total_decoding_time = sum.total_decoding_time +. stats.decoding_time;
+          total_drops_used = sum.total_drops_used + stats.drops_used;
+          total_overhead = sum.total_overhead +. overhead;
+          total_success_count =
+            (sum.total_success_count + if stats.success then 1 else 0);
+        })
       empty_stats_sum stats_collection
   in
   let rounds = float_of_int setup.rounds in
@@ -210,19 +209,19 @@ let print_setup (setup : setup) =
 let print_stats (setup : setup) (stats : combined_stats) =
   let s_to_us_multiplier = 1_000_000.0 in
   Printf.printf "stats:\n";
-  Printf.printf "  encoder setup time:                 %10.3fus\n"
+  Printf.printf "  encoder setup time:              %10.3fus\n"
     (s_to_us_multiplier *. stats.encoder_setup_time);
-  Printf.printf "  decoder setup time:                 %10.3fus\n"
+  Printf.printf "  decoder setup time:              %10.3fus\n"
     (s_to_us_multiplier *. stats.decoder_setup_time);
-  Printf.printf "  average encoding time per round:    %10.3fus\n"
+  Printf.printf "  average encoding time per round: %10.3fus\n"
     (s_to_us_multiplier *. stats.average_encoding_time);
-  Printf.printf "  average decoding time per round:    %10.3fus\n"
+  Printf.printf "  average decoding time per round: %10.3fus\n"
     (s_to_us_multiplier *. stats.average_decoding_time);
-  Printf.printf "  average encoding time per drop:     %10.3fus\n"
+  Printf.printf "  average encoding time per drop:  %10.3fus\n"
     (s_to_us_multiplier
     *. stats.average_encoding_time
     /. stats.average_drops_used);
-  Printf.printf "  average decoding time per drop:     %10.3fus\n"
+  Printf.printf "  average decoding time per drop:  %10.3fus\n"
     (s_to_us_multiplier
     *. stats.average_decoding_time
     /. stats.average_drops_used);
@@ -230,20 +229,20 @@ let print_stats (setup : setup) (stats : combined_stats) =
     float_of_int
       (setup.data_block_size * Ofountain.Param.data_block_count setup.param)
   in
-  Printf.printf "  average data Mbytes/s:              %10.3f\n"
+  Printf.printf "  average data Mbytes/s:           %10.3f\n"
     (data_byte_count_per_round
     /. 1024.0
     /. 1024.0
     /. stats.average_encoding_time);
-  Printf.printf "  success rate:                       %10.3f%%\n"
+  Printf.printf "  success rate:                    %10.3f%%\n"
     (100.0 *. stats.success_rate);
-  Printf.printf "  avg. overhead for successful cases: %10.3f%%\n"
+  Printf.printf "  average overhead:                %10.3f%%\n"
     (100.0 *. stats.average_overhead)
 
 let () =
   let setup =
-    make_setup ~systematic:true ~data_block_count:100 ~max_redundancy:0.5
-      ~data_block_size:1300 ~data_loss_rate:0.02 ~rounds:200
+    make_setup ~systematic:false ~data_block_count:1000 ~max_redundancy:0.30
+      ~data_block_size:1300 ~data_loss_rate:0.01 ~rounds:100
   in
   let stats = run setup in
   print_setup setup;
