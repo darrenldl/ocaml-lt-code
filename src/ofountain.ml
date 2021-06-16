@@ -35,6 +35,7 @@ module Encode = struct
         let degrees' = Dist.choose_n (Param.dist param) n in
         let data_to_parity_drop_ratio = (data_block_count + n - 1) / n
         in
+        (* we amplify the coverage of the parity drops *)
         for i=0 to n-1 do
           degrees'.(i) <- min data_block_count (degrees'.(i) * data_to_parity_drop_ratio);
         done;
