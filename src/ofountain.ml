@@ -26,25 +26,26 @@ module Encode = struct
 
   let gen_degrees (param : Param.t) : int array =
     let data_block_count = Param.data_block_count param in
-    let drop_count = Param.max_drop_count param in
+    let max_drop_count = Param.max_drop_count param in
     let systematic = Param.systematic param in
     let degrees =
       if systematic then (
-        let degrees = Array.make drop_count 1 in
-        let n = drop_count - data_block_count in
+        let degrees = Array.make max_drop_count 1 in
+        let n = max_drop_count - data_block_count in
         let degrees' = Dist.choose_n (Param.dist param) n in
-        let data_to_parity_drop_ratio = (data_block_count + n - 1) / n in
         (* we amplify the coverage of the parity drops *)
+        let data_to_parity_drop_ratio = (data_block_count + n - 1) / n in
+        let multiplier = data_to_parity_drop_ratio * 20 in
         for i = 0 to n - 1 do
           degrees'.(i) <-
-            min data_block_count (degrees'.(i) * data_to_parity_drop_ratio)
+            min data_block_count (degrees'.(i) * multiplier)
         done;
         Array.blit degrees' 0 degrees data_block_count n;
         degrees)
-      else Dist.choose_n (Param.dist param) drop_count
+      else Dist.choose_n (Param.dist param) max_drop_count
     in
     (* fix a random drop to be degree 1 to ensure decoding is at least possible *)
-    if not systematic then degrees.(Random.int drop_count) <- 1;
+    if not systematic then degrees.(Random.int max_drop_count) <- 1;
     degrees
 
   type encoder = {
