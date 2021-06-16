@@ -33,11 +33,11 @@ module Encode = struct
         let degrees = Array.make drop_count 1 in
         let n = drop_count - data_block_count in
         let degrees' = Dist.choose_n (Param.dist param) n in
-        let data_to_parity_drop_ratio = (data_block_count + n - 1) / n
-        in
+        let data_to_parity_drop_ratio = (data_block_count + n - 1) / n in
         (* we amplify the coverage of the parity drops *)
-        for i=0 to n-1 do
-          degrees'.(i) <- min data_block_count (degrees'.(i) * data_to_parity_drop_ratio);
+        for i = 0 to n - 1 do
+          degrees'.(i) <-
+            min data_block_count (degrees'.(i) * data_to_parity_drop_ratio)
         done;
         Array.blit degrees' 0 degrees data_block_count n;
         degrees)
@@ -105,14 +105,13 @@ module Encode = struct
       let drop_data = encoder.drop_data_buffer.(index) in
       let drop = Drop.make_exn ~index ~degree ~data:drop_data in
       let data_indices = get_data_block_indices encoder.param drop in
-      (if Int_set.cardinal data_indices = 1 then
+      if Int_set.cardinal data_indices = 1 then
         let data_index = Int_set.choose data_indices in
         Utils.blit_onto ~src:encoder.data_blocks.(data_index) ~onto:drop_data
       else
         Int_set.iter
-        (fun i -> Utils.xor_onto ~src:encoder.data_blocks.(i) ~onto:drop_data)
-        data_indices
-      );
+          (fun i -> Utils.xor_onto ~src:encoder.data_blocks.(i) ~onto:drop_data)
+          data_indices;
       encoder.cur_drop_index <- encoder.cur_drop_index + 1;
       Some drop)
     else None
@@ -295,7 +294,8 @@ module Decode = struct
                 Int_set.choose decoder.graph.drop_edges.(drop_index)
               in
               if not decoder.graph.data_block_is_solved.(data_index) then (
-                Utils.blit_onto ~src:drop_data ~onto:decoder.data_blocks.(data_index);
+                Utils.blit_onto ~src:drop_data
+                  ~onto:decoder.data_blocks.(data_index);
                 Graph.mark_data_as_solved ~data_index decoder.graph;
                 Graph.remove_edge ~data_index ~drop_index decoder.graph;
                 propagate_data_xor ~data_index decoder)))

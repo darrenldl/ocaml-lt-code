@@ -27,9 +27,7 @@ let xor_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
 
 let blit_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
   assert (Cstruct.length src = Cstruct.length onto);
-  Cstruct.blit src 0
-  onto
-                  0 (Cstruct.length src)
+  Cstruct.blit src 0 onto 0 (Cstruct.length src)
 
 let cstruct_array_is_consistent (arr : Cstruct.t array) : bool =
   Array.length arr = 0
