@@ -37,8 +37,7 @@ module Encode = struct
         let parity_to_data_ratio = (data_block_count + n - 1) / n in
         let multiplier = parity_to_data_ratio * 20 in
         for i = 0 to n - 1 do
-          degrees'.(i) <-
-            min data_block_count (degrees'.(i) * multiplier)
+          degrees'.(i) <- min data_block_count (degrees'.(i) * multiplier)
         done;
         Array.blit degrees' 0 degrees data_block_count n;
         degrees)
