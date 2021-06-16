@@ -1,7 +1,7 @@
 module Param = Param
 module Drop_set = Drop_set
 
-let get_data_block_indices (param : Param.t) (t : Drop.t) : Int_set.t =
+let get_data_block_indices (param : Param.t) (drop : Drop.t) : Int_set.t =
   let systematic = Param.systematic param in
   let data_block_count = Param.data_block_count param in
   let rec aux cur degree acc =
@@ -10,11 +10,11 @@ let get_data_block_indices (param : Param.t) (t : Drop.t) : Int_set.t =
       aux (succ cur) degree (Int_set.add x acc)
     else acc
   in
-  if systematic && Drop.index t < data_block_count then
-    Int_set.add (Drop.index t) Int_set.empty
+  if systematic && Drop.index drop < data_block_count then
+    Int_set.add (Drop.index drop) Int_set.empty
   else (
-    Random.init (Drop.index t);
-    aux 0 (Drop.degree t) Int_set.empty)
+    Random.init (Drop.index drop);
+    aux 0 (Drop.degree drop) Int_set.empty)
 
 module Encode = struct
   type error =
@@ -33,6 +33,11 @@ module Encode = struct
         let degrees = Array.make drop_count 1 in
         let n = drop_count - data_block_count in
         let degrees' = Dist.choose_n (Param.dist param) n in
+        let data_to_parity_drop_ratio = (data_block_count + n - 1) / n
+        in
+        for i=0 to n-1 do
+          degrees'.(i) <- min data_block_count (degrees'.(i) * data_to_parity_drop_ratio);
+        done;
         Array.blit degrees' 0 degrees data_block_count n;
         degrees)
       else Dist.choose_n (Param.dist param) drop_count
