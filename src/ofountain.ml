@@ -98,9 +98,15 @@ module Encode = struct
       let degree = encoder.degrees.(index) in
       let drop_data = encoder.drop_data_buffer.(index) in
       let drop = Drop.make_exn ~index ~degree ~data:drop_data in
-      Int_set.iter
+      let data_indices = get_data_block_indices encoder.param drop in
+      (if Int_set.cardinal data_indices = 1 then
+        let data_index = Int_set.choose data_indices in
+        Utils.blit_onto ~src:encoder.data_blocks.(data_index) ~onto:drop_data
+      else
+        Int_set.iter
         (fun i -> Utils.xor_onto ~src:encoder.data_blocks.(i) ~onto:drop_data)
-        (get_data_block_indices encoder.param drop);
+        data_indices
+      );
       encoder.cur_drop_index <- encoder.cur_drop_index + 1;
       Some drop)
     else None
@@ -166,7 +172,7 @@ module Decode = struct
       Utils.fill_array Int_set.empty g.data_edges;
       Utils.fill_array Int_set.empty g.drop_edges
 
-    let remove_edge ~drop_index ~data_index (g : t) : unit =
+    let remove_edge ~data_index ~drop_index (g : t) : unit =
       g.drop_edges.(drop_index) <-
         Int_set.remove data_index g.drop_edges.(drop_index);
       g.data_edges.(data_index) <-
@@ -250,7 +256,7 @@ module Decode = struct
           Utils.xor_onto
             ~src:decoder.data_blocks.(data_index)
             ~onto:(Option.get decoder.drops.(drop_index));
-          Graph.remove_edge ~drop_index ~data_index decoder.graph))
+          Graph.remove_edge ~data_index ~drop_index decoder.graph))
       data_indices
 
   let propagate_data_xor ~data_index (decoder : decoder) : unit =
@@ -260,7 +266,7 @@ module Decode = struct
         Option.iter
           (fun onto ->
             Utils.xor_onto ~src:data ~onto;
-            Graph.remove_edge ~drop_index ~data_index decoder.graph)
+            Graph.remove_edge ~data_index ~drop_index decoder.graph)
           decoder.drops.(drop_index))
       decoder.graph.data_edges.(data_index)
 
@@ -283,10 +289,9 @@ module Decode = struct
                 Int_set.choose decoder.graph.drop_edges.(drop_index)
               in
               if not decoder.graph.data_block_is_solved.(data_index) then (
-                Cstruct.blit drop_data 0
-                  decoder.data_blocks.(data_index)
-                  0 decoder.data_block_size;
+                Utils.blit_onto ~src:drop_data ~onto:decoder.data_blocks.(data_index);
                 Graph.mark_data_as_solved ~data_index decoder.graph;
+                Graph.remove_edge ~data_index ~drop_index decoder.graph;
                 propagate_data_xor ~data_index decoder)))
       decoder.drops;
     if !degree_1_found then `Ongoing

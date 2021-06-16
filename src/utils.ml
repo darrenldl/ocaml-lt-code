@@ -10,7 +10,7 @@ let xor_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
   let rec aux i len src onto =
     if i < len - 8 then (
       let old = get_uint64 onto i in
-      let x = Cstruct.LE.get_uint64 src i in
+      let x = get_uint64 src i in
       let new_val = Int64.logxor x old in
       set_uint64 onto i new_val;
       aux (i + 8) len src onto)
@@ -24,6 +24,12 @@ let xor_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
   in
   let len = Cstruct.length src in
   aux 0 len src onto
+
+let blit_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
+  assert (Cstruct.length src = Cstruct.length onto);
+  Cstruct.blit src 0
+  onto
+                  0 (Cstruct.length src)
 
 let cstruct_array_is_consistent (arr : Cstruct.t array) : bool =
   Array.length arr = 0
