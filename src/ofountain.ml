@@ -7,24 +7,22 @@ let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
   let rec aux prng_state degree tbl =
     if Hashtbl.length tbl < degree then (
       Hashtbl.replace tbl (Rand.gen_int prng_state data_block_count) ();
-      aux prng_state degree tbl
-      )
+      aux prng_state degree tbl)
   in
-  if systematic && Drop.index drop < data_block_count then
-    [| (Drop.index drop) |]
-  else (
+  if systematic && Drop.index drop < data_block_count then [| Drop.index drop |]
+  else
     let degree = Drop.degree drop in
     let tbl = Hashtbl.create degree in
     let prng_state = Rand.make (Drop.index drop) in
     aux prng_state degree tbl;
-    let arr = Array.make (Drop.degree drop) 0 in 
+    let arr = Array.make (Drop.degree drop) 0 in
     let c = ref 0 in
-    Hashtbl.iter (fun i () ->
-      arr.(!c) <- i;
-      c := !c + 1
-    ) tbl;
+    Hashtbl.iter
+      (fun i () ->
+        arr.(!c) <- i;
+        c := !c + 1)
+      tbl;
     arr
-  )
 
 module Encode = struct
   type error =
@@ -197,10 +195,12 @@ module Decode = struct
       let drop_index = Drop.index drop in
       let data_indices = get_data_block_indices g.param drop in
       Array.iter
-        (fun data_index -> Hashtbl.replace g.drop_edges.(drop_index) data_index ())
+        (fun data_index ->
+          Hashtbl.replace g.drop_edges.(drop_index) data_index ())
         data_indices;
       Array.iter
-        (fun data_index -> Hashtbl.replace g.data_edges.(data_index) drop_index ())
+        (fun data_index ->
+          Hashtbl.replace g.data_edges.(data_index) drop_index ())
         data_indices;
       g.drop_fill_count <- g.drop_fill_count + 1
 

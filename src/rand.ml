@@ -2,14 +2,10 @@ type state = int64 ref
 
 let make seed : state =
   let seed = Int64.of_int seed in
-  ref (
-    if Int64.equal seed 0L then
-      Int64.succ 0L
-    else if Int64.equal seed Int64.max_int then
-      Int64.(pred max_int)
-    else
-      seed
-  )
+  ref
+    (if Int64.equal seed 0L then Int64.succ 0L
+    else if Int64.equal seed Int64.max_int then Int64.(pred max_int)
+    else seed)
 
 let gen_int64 (state : state) (bound : int64) : int64 =
   let x = !state in
@@ -28,14 +24,10 @@ let global =
   let seed = Random.int 0x0FFFFFFF in
   make seed
 
-let gen_int64_global bound =
-  gen_int64 global bound
+let gen_int64_global bound = gen_int64 global bound
 
 let gen_int (state : state) (bound : int) : int =
-  let r = Int64.to_int @@
-  gen_int64 state (Int64.of_int bound)
-  in
+  let r = Int64.to_int @@ gen_int64 state (Int64.of_int bound) in
   r
 
-let gen_int_global bound =
-  gen_int global bound
+let gen_int_global bound = gen_int global bound

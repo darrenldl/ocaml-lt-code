@@ -249,7 +249,8 @@ let print_stats (setup : setup) (stats : combined_stats) =
 let run_and_print (setup : setup) =
   let stats = run setup in
   let redundancy = calc_redundancy setup in
-  Printf.printf "Simulation at data loss rate of %.1f%%, at redundancy of %.1f%%, %s\n"
+  Printf.printf
+    "Simulation at data loss rate of %.1f%%, at redundancy of %.1f%%, %s\n"
     (100.0 *. setup.data_loss_rate)
     redundancy
     (if Ofountain.Param.systematic setup.param then "systematic"
