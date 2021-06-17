@@ -232,11 +232,16 @@ let print_stats (setup : setup) (stats : combined_stats) =
     float_of_int
       (setup.data_block_size * Ofountain.Param.data_block_count setup.param)
   in
-  Printf.printf "    average data Mbytes/s:           %10.3f\n"
+  Printf.printf "    average encoding data Mbytes/s:  %10.3f\n"
     (data_byte_count_per_round
     /. 1024.0
     /. 1024.0
     /. stats.average_encoding_time);
+  Printf.printf "    average decoding data Mbytes/s:  %10.3f\n"
+    (data_byte_count_per_round
+    /. 1024.0
+    /. 1024.0
+    /. stats.average_decoding_time);
   Printf.printf "    success rate:                    %10.3f%%\n"
     (100.0 *. stats.success_rate);
   Printf.printf "    average overhead:                %10.3f%%\n"
