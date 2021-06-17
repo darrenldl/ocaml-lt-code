@@ -107,7 +107,6 @@ let run_once (setup : setup) : stats =
     match encode_res with
     | None -> stats
     | Some x -> (
-        Random.self_init ();
         let stats = { stats with drops_used = stats.drops_used + 1 } in
         if Random.float 1.0 < setup.data_loss_rate then
           aux data_blocks_copy stats
@@ -250,7 +249,7 @@ let print_stats (setup : setup) (stats : combined_stats) =
 let run_and_print (setup : setup) =
   let stats = run setup in
   let redundancy = calc_redundancy setup in
-  Printf.printf "Simulation at data loss rate of %.1f%%, redundancy at %.1f%%, %s\n"
+  Printf.printf "Simulation at data loss rate of %.1f%%, at redundancy of %.1f%%, %s\n"
     (100.0 *. setup.data_loss_rate)
     redundancy
     (if Ofountain.Param.systematic setup.param then "systematic"
@@ -259,10 +258,11 @@ let run_and_print (setup : setup) =
   print_stats setup stats
 
 let () =
+  Random.self_init ();
   let setups =
     [
       make_setup ~systematic:false ~data_block_count:1000 ~max_redundancy:0.30
-        ~data_block_size:1300 ~data_loss_rate:0.01 ~rounds:100;
+        ~data_block_size:1300 ~data_loss_rate:0.01 ~rounds:200;
     ]
   in
   List.iter run_and_print setups
