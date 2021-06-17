@@ -252,7 +252,7 @@ let run_and_print (setup : setup) =
   let redundancy = calc_redundancy setup in
   Printf.printf "Simulation at %.1f data loss rate, redundancy at %.1f, %s\n"
     (100.0 *. setup.data_loss_rate)
-    (100.0 *. redundancy)
+    redundancy
     (if Ofountain.Param.systematic setup.param then "systematic"
     else "non-systematic");
   print_setup setup;
@@ -261,8 +261,8 @@ let run_and_print (setup : setup) =
 let () =
   let setups =
     [
-      make_setup ~systematic:false ~data_block_count:1000 ~max_redundancy:0.40
-        ~data_block_size:1300 ~data_loss_rate:0.05 ~rounds:100;
+      make_setup ~systematic:false ~data_block_count:1600 ~max_redundancy:0.30
+        ~data_block_size:1000 ~data_loss_rate:0.01 ~rounds:100;
     ]
   in
   List.iter run_and_print setups
