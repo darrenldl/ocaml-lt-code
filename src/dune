@@ -16,6 +16,6 @@
  (foreign_stubs
     (language c)
     (names ofountain)
-    (flags -O3)
+    (flags -march=native -std=c11 -fPIC -O3)
  )
 )
