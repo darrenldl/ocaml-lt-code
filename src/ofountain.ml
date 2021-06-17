@@ -1,20 +1,30 @@
 module Param = Param
 module Drop_set = Drop_set
 
-let get_data_block_indices (param : Param.t) (drop : Drop.t) : Int_set.t =
+let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
   let systematic = Param.systematic param in
   let data_block_count = Param.data_block_count param in
-  let rec aux cur degree acc =
-    if cur < degree then
-      let x = Random.int data_block_count in
-      aux (succ cur) degree (Int_set.add x acc)
-    else acc
+  let rec aux degree tbl =
+    if Hashtbl.length tbl < degree then (
+      Hashtbl.replace tbl (Random.int data_block_count) ();
+      aux degree tbl
+      )
   in
   if systematic && Drop.index drop < data_block_count then
-    Int_set.add (Drop.index drop) Int_set.empty
+    [| (Drop.index drop) |]
   else (
+    let degree = Drop.degree drop in
+    let tbl = Hashtbl.create degree in
     Random.init (Drop.index drop);
-    aux 0 (Drop.degree drop) Int_set.empty)
+    aux degree tbl;
+    let arr = Array.make (Drop.degree drop) 0 in 
+    let c = ref 0 in
+    Hashtbl.iter (fun i () ->
+      arr.(!c) <- i;
+      c := !c + 1
+    ) tbl;
+    arr
+  )
 
 module Encode = struct
   type error =
@@ -106,11 +116,11 @@ module Encode = struct
       let drop_data = encoder.drop_data_buffer.(index) in
       let drop = Drop.make_exn ~index ~degree ~data:drop_data in
       let data_indices = get_data_block_indices encoder.param drop in
-      if Int_set.cardinal data_indices = 1 then
-        let data_index = Int_set.choose data_indices in
+      if Array.length data_indices = 1 then
+        let data_index = data_indices.(0) in
         Utils.blit_onto ~src:encoder.data_blocks.(data_index) ~onto:drop_data
       else
-        Int_set.iter
+        Array.iter
           (fun i -> Utils.xor_onto ~src:encoder.data_blocks.(i) ~onto:drop_data)
           data_indices;
       encoder.cur_drop_index <- encoder.cur_drop_index + 1;
@@ -186,10 +196,10 @@ module Decode = struct
     let add_drop (drop : Drop.t) (g : t) : unit =
       let drop_index = Drop.index drop in
       let data_indices = get_data_block_indices g.param drop in
-      Int_set.iter
+      Array.iter
         (fun data_index -> Hashtbl.replace g.drop_edges.(drop_index) data_index ())
         data_indices;
-      Int_set.iter
+      Array.iter
         (fun data_index -> Hashtbl.replace g.data_edges.(data_index) drop_index ())
         data_indices;
       g.drop_fill_count <- g.drop_fill_count + 1
