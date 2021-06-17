@@ -4,10 +4,10 @@ module Drop_set = Drop_set
 let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
   let systematic = Param.systematic param in
   let data_block_count = Param.data_block_count param in
-  let rec aux degree tbl =
+  let rec aux prng_state degree tbl =
     if Hashtbl.length tbl < degree then (
-      Hashtbl.replace tbl (Random.int data_block_count) ();
-      aux degree tbl
+      Hashtbl.replace tbl (Rand.gen_int prng_state data_block_count) ();
+      aux prng_state degree tbl
       )
   in
   if systematic && Drop.index drop < data_block_count then
@@ -15,8 +15,8 @@ let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
   else (
     let degree = Drop.degree drop in
     let tbl = Hashtbl.create degree in
-    Random.init (Drop.index drop);
-    aux degree tbl;
+    let prng_state = Rand.make (Drop.index drop) in
+    aux prng_state degree tbl;
     let arr = Array.make (Drop.degree drop) 0 in 
     let c = ref 0 in
     Hashtbl.iter (fun i () ->
@@ -55,7 +55,7 @@ module Encode = struct
       else Dist.choose_n (Param.dist param) max_drop_count
     in
     (* fix a random drop to be degree 1 to ensure decoding is at least possible *)
-    if not systematic then degrees.(Random.int max_drop_count) <- 1;
+    if not systematic then degrees.(Rand.gen_int_global max_drop_count) <- 1;
     degrees
 
   type encoder = {
