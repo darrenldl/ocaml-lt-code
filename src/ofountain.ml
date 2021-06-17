@@ -168,7 +168,8 @@ module Decode = struct
         data_block_solved_count = 0;
         drop_fill_count = 0;
         data_edges = Array.init data_block_count (fun _ -> Hashtbl.create 5);
-        drop_edges = Array.init (Param.max_drop_count param) (fun _ -> Hashtbl.create 5);
+        drop_edges =
+          Array.init (Param.max_drop_count param) (fun _ -> Hashtbl.create 5);
       }
 
     let reset (g : t) : unit =
@@ -179,21 +180,17 @@ module Decode = struct
       Array.iter Hashtbl.reset g.drop_edges
 
     let remove_edge ~data_index ~drop_index (g : t) : unit =
-      Hashtbl.remove
-      g.drop_edges.(drop_index) data_index;
-      Hashtbl.remove
-      g.data_edges.(data_index) drop_index
+      Hashtbl.remove g.drop_edges.(drop_index) data_index;
+      Hashtbl.remove g.data_edges.(data_index) drop_index
 
     let add_drop (drop : Drop.t) (g : t) : unit =
       let drop_index = Drop.index drop in
       let data_indices = get_data_block_indices g.param drop in
-      Int_set.iter (fun data_index ->
-        Hashtbl.add g.drop_edges.(drop_index) data_index ()
-      ) data_indices;
       Int_set.iter
-        (fun data_index ->
-          Hashtbl.add g.data_edges.(data_index)
-            drop_index ())
+        (fun data_index -> Hashtbl.add g.drop_edges.(drop_index) data_index ())
+        data_indices;
+      Int_set.iter
+        (fun data_index -> Hashtbl.add g.data_edges.(data_index) drop_index ())
         data_indices;
       g.drop_fill_count <- g.drop_fill_count + 1
 
@@ -294,7 +291,9 @@ module Decode = struct
             if Graph.degree_of_drop ~drop_index decoder.graph = 1 then (
               degree_1_found := true;
               let data_index =
-                match Hashtbl.to_seq_keys decoder.graph.drop_edges.(drop_index) () with
+                match
+                  Hashtbl.to_seq_keys decoder.graph.drop_edges.(drop_index) ()
+                with
                 | Seq.Cons (x, _) -> x
                 | _ -> failwith "Unexpected case"
               in
