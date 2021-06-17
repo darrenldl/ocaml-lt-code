@@ -25,7 +25,7 @@ sim-main : lib
 	dune exec --release --force ./sims/main.exe
 
 .PHONY: sim-main-prof
-sim-main : lib
+sim-main-prof : lib
 	OCAMLRUNPARA=b dune exec --release --force ./sims/main.exe
 	perf record --call-graph=dwarf -- _build/default/sims/main.exe
 
