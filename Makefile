@@ -24,6 +24,11 @@ test : lib
 sim-main : lib
 	dune exec --release --force ./sims/main.exe
 
+.PHONY: sim-main-prof
+sim-main : lib
+	OCAMLRUNPARA=b dune exec --release --force ./sims/main.exe
+	perf record --call-graph=dwarf -- _build/default/sims/main.exe
+
 .PHONY: cov-desc-test
 cov-desc-test : desc
 	find . -name '*.coverage' | xargs rm -f

@@ -149,7 +149,7 @@ module Decode = struct
     ]
 
   module Graph = struct
-    type bucket = Int_set.t
+    type bucket = (int, unit) Hashtbl.t
 
     type t = {
       param : Param.t;
@@ -167,31 +167,33 @@ module Decode = struct
         data_block_is_solved = Array.make data_block_count false;
         data_block_solved_count = 0;
         drop_fill_count = 0;
-        data_edges = Array.make data_block_count Int_set.empty;
-        drop_edges = Array.make (Param.max_drop_count param) Int_set.empty;
+        data_edges = Array.init data_block_count (fun _ -> Hashtbl.create 5);
+        drop_edges = Array.init (Param.max_drop_count param) (fun _ -> Hashtbl.create 5);
       }
 
     let reset (g : t) : unit =
       Utils.fill_array false g.data_block_is_solved;
       g.data_block_solved_count <- 0;
       g.drop_fill_count <- 0;
-      Utils.fill_array Int_set.empty g.data_edges;
-      Utils.fill_array Int_set.empty g.drop_edges
+      Array.iter Hashtbl.reset g.data_edges;
+      Array.iter Hashtbl.reset g.drop_edges
 
     let remove_edge ~data_index ~drop_index (g : t) : unit =
-      g.drop_edges.(drop_index) <-
-        Int_set.remove data_index g.drop_edges.(drop_index);
-      g.data_edges.(data_index) <-
-        Int_set.remove drop_index g.data_edges.(data_index)
+      Hashtbl.remove
+      g.drop_edges.(drop_index) data_index;
+      Hashtbl.remove
+      g.data_edges.(data_index) drop_index
 
     let add_drop (drop : Drop.t) (g : t) : unit =
       let drop_index = Drop.index drop in
       let data_indices = get_data_block_indices g.param drop in
-      g.drop_edges.(drop_index) <- data_indices;
+      Int_set.iter (fun data_index ->
+        Hashtbl.add g.drop_edges.(drop_index) data_index ()
+      ) data_indices;
       Int_set.iter
         (fun data_index ->
-          g.data_edges.(data_index) <-
-            Int_set.add drop_index g.data_edges.(data_index))
+          Hashtbl.add g.data_edges.(data_index)
+            drop_index ())
         data_indices;
       g.drop_fill_count <- g.drop_fill_count + 1
 
@@ -200,7 +202,7 @@ module Decode = struct
       g.data_block_solved_count <- g.data_block_solved_count + 1
 
     let degree_of_drop ~drop_index (g : t) : int =
-      Int_set.cardinal g.drop_edges.(drop_index)
+      Hashtbl.length g.drop_edges.(drop_index)
   end
 
   type decoder = {
@@ -256,8 +258,8 @@ module Decode = struct
   let remove_solved_drop_edges ~drop_index (decoder : decoder) : unit =
     (* this essentially catches up the missed data propagation *)
     let data_indices = decoder.graph.drop_edges.(drop_index) in
-    Int_set.iter
-      (fun data_index ->
+    Hashtbl.iter
+      (fun data_index () ->
         if decoder.graph.data_block_is_solved.(data_index) then (
           Utils.xor_onto
             ~src:decoder.data_blocks.(data_index)
@@ -267,8 +269,8 @@ module Decode = struct
 
   let propagate_data_xor ~data_index (decoder : decoder) : unit =
     let data = decoder.data_blocks.(data_index) in
-    Int_set.iter
-      (fun drop_index ->
+    Hashtbl.iter
+      (fun drop_index () ->
         Option.iter
           (fun onto ->
             Utils.xor_onto ~src:data ~onto;
@@ -292,7 +294,9 @@ module Decode = struct
             if Graph.degree_of_drop ~drop_index decoder.graph = 1 then (
               degree_1_found := true;
               let data_index =
-                Int_set.choose decoder.graph.drop_edges.(drop_index)
+                match Hashtbl.to_seq_keys decoder.graph.drop_edges.(drop_index) () with
+                | Seq.Cons (x, _) -> x
+                | _ -> failwith "Unexpected case"
               in
               if not decoder.graph.data_block_is_solved.(data_index) then (
                 Utils.blit_onto ~src:drop_data
