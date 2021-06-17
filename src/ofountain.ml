@@ -187,10 +187,10 @@ module Decode = struct
       let drop_index = Drop.index drop in
       let data_indices = get_data_block_indices g.param drop in
       Int_set.iter
-        (fun data_index -> Hashtbl.add g.drop_edges.(drop_index) data_index ())
+        (fun data_index -> Hashtbl.replace g.drop_edges.(drop_index) data_index ())
         data_indices;
       Int_set.iter
-        (fun data_index -> Hashtbl.add g.data_edges.(data_index) drop_index ())
+        (fun data_index -> Hashtbl.replace g.data_edges.(data_index) drop_index ())
         data_indices;
       g.drop_fill_count <- g.drop_fill_count + 1
 
