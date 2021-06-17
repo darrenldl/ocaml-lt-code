@@ -7,7 +7,15 @@
  (name ofountain)
  (public_name ofountain)
  (instrumentation (backend bisect_ppx))
- (libraries cstruct
-            containers
-  )
+ (libraries containers
+            cstruct
+            ctypes
+            ctypes.foreign
  )
+ (library_flags (-a src/ofountain.o))
+ (foreign_stubs
+    (language c)
+    (names ofountain)
+    (flags -O3)
+ )
+)
