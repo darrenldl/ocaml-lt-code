@@ -178,16 +178,18 @@ module Decode = struct
 
     let make param =
       let data_block_count = Param.data_block_count param in
+      let max_drop_count = Param.max_drop_count param in
       {
         param;
         data_block_is_solved = Array.make data_block_count false;
         data_block_solved_count = 0;
         drop_fill_count = 0;
         data_edges =
-          Array.init data_block_count (fun _ -> Hash_int_set.create 10);
+          Array.init data_block_count (fun _ ->
+              Hash_int_set.create (max 1 (max_drop_count / 10)));
         drop_edges =
-          Array.init (Param.max_drop_count param) (fun _ ->
-              Hash_int_set.create 10);
+          Array.init max_drop_count (fun _ ->
+              Hash_int_set.create (max 1 (data_block_count / 10)));
       }
 
     let reset (g : t) : unit =
