@@ -379,15 +379,15 @@ module Decode = struct
                 else Ok `Ongoing)
 
   let decode_all (decoder : decoder) (drops : Drop_set.t) : (Cstruct.t array, error) result =
-    let x = Drop_set.choose drops in
-    let drops = Drop_set.remove x drops in
-    Drop_set.iter
-      (fun drop -> decode_one decoder drop |> ignore)
-      drops;
-    match decode_one decoder x with
+    let rec aux decoder drops =
+      let x = Drop_set.choose drops in
+      let drops = Drop_set.remove x drops in
+      match decode_one decoder x with
     | Error e -> Error e
-    | Ok `Ongoing -> Error `Cannot_recover
+    | Ok `Ongoing -> if max_tries_reached decoder then Error `Cannot_recover else aux decoder drops
     | Ok (`Success arr) -> Ok arr
+    in
+    aux decoder drops
 
   let decode ?data_block_buffer (param : Param.t) (drops : Drop_set.t) :
       (Cstruct.t array, error) result =
