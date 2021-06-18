@@ -3,6 +3,7 @@ type setup = {
   data_block_size : int;
   data_loss_rate : float;
   rounds : int;
+  encode_all_upfront : bool;
   encoder : Ofountain.encoder;
   encoder_setup_time : float;
   decoder : Ofountain.decoder;
@@ -52,7 +53,7 @@ let empty_stats_sum =
     total_success_count = 0;
   }
 
-let make_setup ~systematic ~data_block_count ~max_redundancy ~data_block_size
+let make_setup ~systematic ~encode_all_upfront ~data_block_count ~max_redundancy ~data_block_size
     ~data_loss_rate ~rounds =
   let max_drop_count =
     data_block_count
@@ -90,37 +91,19 @@ let make_setup ~systematic ~data_block_count ~max_redundancy ~data_block_size
     data_block_size;
     data_loss_rate;
     rounds;
+    encode_all_upfront;
     encoder;
     encoder_setup_time;
     decoder;
     decoder_setup_time;
   }
 
-let run_once (setup : setup) : stats =
-  let rec aux (data_blocks_copy : Cstruct.t array) (stats : stats) : stats =
-    let encoding_time, encode_res =
-      time_function (fun () -> Ofountain.encode_one_drop setup.encoder)
-    in
-    let stats =
-      { stats with encoding_time = stats.encoding_time +. encoding_time }
-    in
-    match encode_res with
-    | None -> stats
-    | Some x -> (
-        let stats = { stats with drops_used = stats.drops_used + 1 } in
-        if Random.float 1.0 < setup.data_loss_rate then
-          aux data_blocks_copy stats
-        else
-          let decoding_time, decode_res =
-            time_function (fun () -> Ofountain.decode_one_drop setup.decoder x)
-          in
-          let stats =
-            { stats with decoding_time = stats.decoding_time +. decoding_time }
-          in
-          match decode_res with
-          | Ok (`Success arr) ->
-              for
-                i = 0 to Ofountain.data_block_count_of_decoder setup.decoder - 1
+let check_recovered_data decoder (data_blocks_copy : Cstruct.t array) (arr : Cstruct.t array) : unit =
+  let data_block_count = Ofountain.data_block_count_of_decoder decoder in
+  assert (data_block_count = Array.length data_blocks_copy);
+  assert (data_block_count = Array.length arr);
+  for
+                i = 0 to Array.length data_blocks_copy - 1
               do
                 let same = Cstruct.equal arr.(i) data_blocks_copy.(i) in
                 if not same then (
@@ -128,9 +111,63 @@ let run_once (setup : setup) : stats =
                   Fmt.pr "original:  %a\n" Cstruct.hexdump_pp
                     data_blocks_copy.(i));
                 assert same
-              done;
+              done
+
+let run_once (setup : setup) : stats =
+  let maybe_decode (stats : stats) (drop : Ofountain.drop) : stats * (Ofountain.decode_status, Ofountain.decode_error) result =
+    let stats = { stats with drops_used = stats.drops_used + 1 } in
+    if Random.float 1.0 < setup.data_loss_rate then
+      stats, Ok `Ongoing
+    else
+      let decoding_time, decode_res =
+        time_function (fun () -> Ofountain.decode_one setup.decoder drop)
+      in
+      let stats =
+        { stats with decoding_time = stats.decoding_time +. decoding_time }
+      in
+      stats, decode_res
+  in
+  let aux_encode_upfront (data_blocks_copy : Cstruct.t array) (stats : stats) : stats =
+    let encoding_time, encode_res =
+      time_function (fun () -> Ofountain.encode_all setup.encoder)
+    in
+    let stats =
+      { stats with encoding_time = stats.encoding_time +. encoding_time }
+    in
+    Array.fold_left (fun stats drop ->
+        let stats, decode_res = maybe_decode stats drop in
+        let stats =
+        (
+        match decode_res with
+          | Ok (`Success arr) ->
+              check_recovered_data setup.decoder data_blocks_copy arr;
               { stats with success = true }
-          | Ok `Ongoing -> aux data_blocks_copy stats
+          | Ok `Ongoing -> stats
+          | Error `Cannot_recover -> stats
+          | Error _ -> failwith "Unexpected case"
+        )
+        in
+        stats
+      )
+    stats
+    encode_res;
+  in
+  let rec aux_encode_lazy (data_blocks_copy : Cstruct.t array) (stats : stats) : stats =
+    let encoding_time, encode_res =
+      time_function (fun () -> Ofountain.encode_one setup.encoder)
+    in
+    let stats =
+      { stats with encoding_time = stats.encoding_time +. encoding_time }
+    in
+    match encode_res with
+    | None -> stats
+    | Some drop -> (
+      let stats, decode_res = maybe_decode stats drop in
+      match decode_res with
+          | Ok (`Success arr) ->
+              check_recovered_data setup.decoder data_blocks_copy arr;
+              { stats with success = true }
+          | Ok `Ongoing -> aux_encode_lazy data_blocks_copy stats
           | Error `Cannot_recover -> stats
           | Error _ -> failwith "Unexpected case")
   in
@@ -151,7 +188,10 @@ let run_once (setup : setup) : stats =
         Cstruct.blit data_blocks.(i) 0 x 0 data_block_size;
         x)
   in
-  aux data_blocks_copy empty_stats
+  if setup.encode_all_upfront then
+    aux_encode_upfront data_blocks_copy empty_stats
+  else
+    aux_encode_lazy data_blocks_copy empty_stats
 
 let run (setup : setup) : combined_stats =
   let stats_collection = Array.init setup.rounds (fun _ -> run_once setup) in
