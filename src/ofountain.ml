@@ -13,27 +13,23 @@ let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
   else
     let degree = Drop.degree drop in
     let arr = Array.make degree 0 in
-    (
-    if degree >= data_block_count / 4 then (
+    (if degree >= data_block_count / 4 then
+     let prng_state = Rand.make (Drop.index drop) in
+     let pick_start = Rand.gen_int prng_state data_block_count in
+     for i = 0 to degree - 1 do
+       let pick = (i + pick_start) mod degree in
+       arr.(i) <- pick
+     done
+    else
+      let set = Hash_int_set.create degree in
       let prng_state = Rand.make (Drop.index drop) in
-      let pick_start = Rand.gen_int prng_state data_block_count in
-      for i=0 to degree-1 do
-        let pick = (i + pick_start) mod degree in
-        arr.(i) <- pick;
-      done
-    )
-    else (
-        let set = Hash_int_set.create degree in
-        let prng_state = Rand.make (Drop.index drop) in
-        aux prng_state degree set;
-    let c = ref 0 in
-    Hash_int_set.iter
-      (fun i ->
-        arr.(!c) <- i;
-        c := !c + 1)
-      set;
-        )
-    );
+      aux prng_state degree set;
+      let c = ref 0 in
+      Hash_int_set.iter
+        (fun i ->
+          arr.(!c) <- i;
+          c := !c + 1)
+        set);
     arr
 
 module Encode = struct
@@ -187,9 +183,11 @@ module Decode = struct
         data_block_is_solved = Array.make data_block_count false;
         data_block_solved_count = 0;
         drop_fill_count = 0;
-        data_edges = Array.init data_block_count (fun _ -> Hash_int_set.create 10);
+        data_edges =
+          Array.init data_block_count (fun _ -> Hash_int_set.create 10);
         drop_edges =
-          Array.init (Param.max_drop_count param) (fun _ -> Hash_int_set.create 10);
+          Array.init (Param.max_drop_count param) (fun _ ->
+              Hash_int_set.create 10);
       }
 
     let reset (g : t) : unit =

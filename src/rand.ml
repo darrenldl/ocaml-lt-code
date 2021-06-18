@@ -12,10 +12,7 @@ let hash_int64 (x : int64) : int64 =
   let x = Int64.logxor x (Int64.shift_right_logical x 7) in
   Int64.logxor x (Int64.shift_left x 17)
 
-let hash_int (x : int) : int =
-  Int64.to_int 
-  @@
-  hash_int64 (Int64.of_int x)
+let hash_int (x : int) : int = Int64.to_int @@ hash_int64 (Int64.of_int x)
 
 let gen_int64 (state : state) (bound : int64) : int64 =
   let mask = 0x7FFFFFFF_FFFFFFFFL in
@@ -25,10 +22,7 @@ let gen_int64 (state : state) (bound : int64) : int64 =
     state := x;
     (* let x = if x = Int64.max_int then Int64.(pred max_int) else x in *)
     let x = Int64.logand x mask in
-    if x < retry_start then
-      Int64.rem x bound
-    else
-      aux state bound retry_start
+    if x < retry_start then Int64.rem x bound else aux state bound retry_start
   in
   aux state bound Int64.(sub mask (rem mask bound))
 
