@@ -235,14 +235,15 @@ let print_setup (setup : setup) =
   let max_drop_count = Ofountain.max_drop_count_of_encoder setup.encoder in
   let redundancy = calc_redundancy setup in
   Printf.printf "  setup:\n";
-  Printf.printf "    systematic:       %b\n"
+  Printf.printf "    systematic:               %b\n"
     (Ofountain.encoder_is_systematic setup.encoder);
-  Printf.printf "    data block count: %d\n" data_block_count;
-  Printf.printf "    max drop count:   %d\n" max_drop_count;
-  Printf.printf "    data block size:  %d\n" setup.data_block_size;
-  Printf.printf "    redundancy:       %7.3f%%\n" redundancy;
-  Printf.printf "    data loss rate:   %7.3f%%\n" (100.0 *. setup.data_loss_rate);
-  Printf.printf "    rounds:           %d\n" setup.rounds
+  Printf.printf "    encode all drops upfront: %b\n" setup.encode_all_upfront;
+  Printf.printf "    data block count:         %5d\n" data_block_count;
+  Printf.printf "    max drop count:           %5d\n" max_drop_count;
+  Printf.printf "    data block size:          %5d\n" setup.data_block_size;
+  Printf.printf "    redundancy:               %8.3f%%\n" redundancy;
+  Printf.printf "    data loss rate:           %8.3f%%\n" (100.0 *. setup.data_loss_rate);
+  Printf.printf "    rounds:                   %d\n" setup.rounds
 
 let print_stats (setup : setup) (stats : combined_stats) =
   let s_to_us_multiplier = 1_000_000.0 in
