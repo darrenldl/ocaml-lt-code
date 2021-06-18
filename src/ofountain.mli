@@ -23,11 +23,15 @@ module Param : sig
     (t, error) result
 end
 
+(** {1 Basic types} *)
+
 type drop
 
 val data_of_drop : drop -> Cstruct.t
 
 module Drop_set : Set.S with type elt = drop
+
+(** {1 Encoding} *)
 
 type encode_error =
   [ `Inconsistent_data_block_size
@@ -36,6 +40,15 @@ type encode_error =
   | `Invalid_drop_data_buffer
   ]
 
+  (** {2 Basic} *)
+val encode :
+  ?systematic:bool ->
+  ?drop_data_buffer:Cstruct.t array ->
+  max_drop_count:int ->
+  Cstruct.t array ->
+  (Param.t * drop array, encode_error) result
+
+  (** {2 Advanced} *)
 type encoder
 
 val make_encoder :
@@ -58,14 +71,11 @@ val data_block_size_of_encoder : encoder -> int
 
 val data_blocks_of_encoder : encoder -> Cstruct.t array
 
-val encode_one_drop : encoder -> drop option
+val encode_one : encoder -> drop option
 
-val encode :
-  ?systematic:bool ->
-  ?drop_data_buffer:Cstruct.t array ->
-  max_drop_count:int ->
-  Cstruct.t array ->
-  (Param.t * drop array, encode_error) result
+val encode_all : encoder -> drop array
+
+(** {1 Decoding} *)
 
 type decode_error =
   [ `Invalid_drop_index
@@ -76,13 +86,23 @@ type decode_error =
   | `Cannot_recover
   ]
 
+  (** {2 Basic} *)
+
 val decode :
   ?data_block_buffer:Cstruct.t array ->
   Param.t ->
   Drop_set.t ->
   (Cstruct.t array, decode_error) result
 
+  (** {2 Advanced} *)
+
 type decoder
+
+val make_decoder :
+  ?data_block_buffer:Cstruct.t array ->
+  data_block_size:int ->
+  Param.t ->
+  (decoder, decode_error) result
 
 val reset_decoder : decoder -> unit
 
@@ -105,10 +125,6 @@ type decode_status =
   | `Ongoing
   ]
 
-val make_decoder :
-  ?data_block_buffer:Cstruct.t array ->
-  data_block_size:int ->
-  Param.t ->
-  (decoder, decode_error) result
+val decode_one : decoder -> drop -> (decode_status, decode_error) result
 
-val decode_one_drop : decoder -> drop -> (decode_status, decode_error) result
+val decode_all : decoder -> Drop_set.t -> (Cstruct.t array, decode_error) result

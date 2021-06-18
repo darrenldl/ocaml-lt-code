@@ -114,7 +114,7 @@ module Encode = struct
     Utils.zero_cstruct_array encoder.drop_data_buffer;
     encoder.cur_drop_index <- 0
 
-  let encode_one_drop (encoder : encoder) : Drop.t option =
+  let encode_one (encoder : encoder) : Drop.t option =
     let drop_count = Param.max_drop_count encoder.param in
     let index = encoder.cur_drop_index in
     if index < drop_count then (
@@ -133,6 +133,11 @@ module Encode = struct
       Some drop)
     else None
 
+  let encode_all (encoder : encoder) : Drop.t array =
+    let drops_left = Param.max_drop_count encoder.param - encoder.cur_drop_index in
+    Array.init drops_left (fun _ ->
+      Option.get @@ encode_one encoder)
+
   let encode ?(systematic = true) ?drop_data_buffer ~max_drop_count
       (data_blocks : Cstruct.t array) : (Param.t * Drop.t array, error) result =
     match
@@ -149,7 +154,7 @@ module Encode = struct
         | Ok encoder ->
             let arr =
               Array.init max_drop_count (fun _ ->
-                  Option.get @@ encode_one_drop encoder)
+                  Option.get @@ encode_one encoder)
             in
             Ok (param, arr))
 end
@@ -353,7 +358,7 @@ module Decode = struct
   let max_tries_reached (decoder : decoder) : bool =
     decoder.graph.drop_fill_count = Param.max_drop_count decoder.param
 
-  let decode_one_drop (decoder : decoder) (drop : Drop.t) :
+  let decode_one (decoder : decoder) (drop : Drop.t) :
       (status, error) result =
     if Cstruct.length (Drop.data drop) <> decoder.data_block_size then
       Error `Invalid_drop_size
@@ -373,6 +378,17 @@ module Decode = struct
                 if max_tries_reached decoder then Error `Cannot_recover
                 else Ok `Ongoing)
 
+  let decode_all (decoder : decoder) (drops : Drop_set.t) : (Cstruct.t array, error) result =
+    let x = Drop_set.choose drops in
+    let drops = Drop_set.remove x drops in
+    Drop_set.iter
+      (fun drop -> decode_one decoder drop |> ignore)
+      drops;
+    match decode_one decoder x with
+    | Error e -> Error e
+    | Ok `Ongoing -> Error `Cannot_recover
+    | Ok (`Success arr) -> Ok arr
+
   let decode ?data_block_buffer (param : Param.t) (drops : Drop_set.t) :
       (Cstruct.t array, error) result =
     if Drop_set.cardinal drops = 0 then Error `Cannot_recover
@@ -384,15 +400,8 @@ module Decode = struct
       with
       | Error e -> Error e
       | Ok decoder -> (
-          let x = Drop_set.choose drops in
-          let drops = Drop_set.remove x drops in
-          Drop_set.iter
-            (fun drop -> decode_one_drop decoder drop |> ignore)
-            drops;
-          match decode_one_drop decoder x with
-          | Error e -> Error e
-          | Ok `Ongoing -> Error `Cannot_recover
-          | Ok (`Success arr) -> Ok arr)
+        decode_all decoder drops
+      )
 end
 
 let max_drop_count = Constants.max_drop_count
@@ -427,7 +436,9 @@ let data_block_size_of_encoder (encoder : Encode.encoder) =
 
 let data_blocks_of_encoder (encoder : Encode.encoder) = encoder.data_blocks
 
-let encode_one_drop = Encode.encode_one_drop
+let encode_one = Encode.encode_one
+
+let encode_all = Encode.encode_all
 
 let encode = Encode.encode
 
@@ -461,6 +472,8 @@ let drop_fill_count_of_decoder (decoder : Decode.decoder) =
 let data_blocks_of_decoder (decoder : Decode.decoder) : Cstruct.t array option =
   if Decode.data_is_ready decoder then Some decoder.data_blocks else None
 
-let decode_one_drop = Decode.decode_one_drop
+let decode_one = Decode.decode_one
+
+let decode_all = Decode.decode_all
 
 let decode = Decode.decode
