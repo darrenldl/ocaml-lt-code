@@ -1,7 +1,7 @@
 module Param = Param
 module Drop_set = Drop_set
 
-let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
+let get_data_block_indices_onto (param : Param.t) (drop : Drop.t) (onto : int array) : unit =
   let systematic = Param.systematic param in
   let data_block_count = Param.data_block_count param in
   let rec aux prng_state degree set =
@@ -9,16 +9,19 @@ let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
       Hash_int_set.add set (Rand.gen_int prng_state data_block_count);
       aux prng_state degree set)
   in
-  if systematic && Drop.index drop < data_block_count then [| Drop.index drop |]
+  let degree = Drop.degree drop in
+  let drop_index = Drop.index drop in
+  if systematic && drop_index < data_block_count then (
+    assert (degree = 1);
+    onto.(0) <- drop_index;
+    )
   else
-    let degree = Drop.degree drop in
-    let arr = Array.make degree 0 in
     (if degree >= data_block_count / 4 then
      let prng_state = Rand.make (Drop.index drop) in
      let pick_start = Rand.gen_int prng_state data_block_count in
      for i = 0 to degree - 1 do
        let pick = (i + pick_start) mod degree in
-       arr.(i) <- pick
+       onto.(i) <- pick
      done
     else
       let set = Hash_int_set.create degree in
@@ -27,10 +30,14 @@ let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
       let c = ref 0 in
       Hash_int_set.iter
         (fun i ->
-          arr.(!c) <- i;
+          onto.(!c) <- i;
           c := !c + 1)
-        set);
-    arr
+        set)
+
+let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
+  let arr = Array.make (Drop.degree drop) 0 in
+  get_data_block_indices_onto param drop arr;
+  arr
 
 module Encode = struct
   type error =
@@ -40,29 +47,37 @@ module Encode = struct
     | `Invalid_drop_data_buffer
     ]
 
-  let gen_degrees (param : Param.t) : int array =
+  let gen_degrees_onto (param : Param.t) onto : unit =
     let data_block_count = Param.data_block_count param in
     let max_drop_count = Param.max_drop_count param in
+    assert (Array.length onto = max_drop_count);
     let systematic = Param.systematic param in
-    let degrees =
-      if systematic then (
-        let degrees = Array.make max_drop_count 1 in
+    (
+    if systematic then (
+      for i=0 to data_block_count-1 do
+        onto.(i) <- 1
+     done;
         let n = max_drop_count - data_block_count in
         if n > 0 then (
-          let degrees' = Dist.choose_n (Param.dist param) n in
+          Dist.choose_onto ~offset:data_block_count (Param.dist param) onto;
           (* we amplify the coverage of the parity drops *)
           let parity_to_data_ratio = (data_block_count + n - 1) / n in
           let multiplier = parity_to_data_ratio * 20 in
-          for i = 0 to n - 1 do
-            degrees'.(i) <- min data_block_count (degrees'.(i) * multiplier)
-          done;
-          Array.blit degrees' 0 degrees data_block_count n);
-        degrees)
-      else Dist.choose_n (Param.dist param) max_drop_count
-    in
+          for i = data_block_count to max_drop_count-1 do
+            onto.(i) <- min data_block_count (onto.(i) * multiplier)
+      done;
+            );
+        )
+    else Dist.choose_onto (Param.dist param) onto
+    );
     (* fix a random drop to be degree 1 to ensure decoding is at least possible *)
-    if not systematic then degrees.(Rand.gen_int_global max_drop_count) <- 1;
-    degrees
+    if not systematic then onto.(Rand.gen_int_global max_drop_count) <- 1
+
+  let gen_degrees (param : Param.t) : int array =
+    let max_drop_count = Param.max_drop_count param in
+    let arr = Array.make max_drop_count 0 in
+    gen_degrees_onto param arr;
+    arr
 
   type encoder = {
     param : Param.t;
@@ -118,7 +133,7 @@ module Encode = struct
     let regen_cycle = 100 in
     assert (encoder.cycle <= regen_cycle);
     if encoder.cycle = regen_cycle then (
-      encoder.degrees <- gen_degrees encoder.param;
+      gen_degrees_onto encoder.param encoder.degrees;
       encoder.cycle <- 0)
     else encoder.cycle <- encoder.cycle + 1
 
