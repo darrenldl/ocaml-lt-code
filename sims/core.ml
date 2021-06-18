@@ -241,9 +241,9 @@ let print_setup (setup : setup) =
   Printf.printf "    data block count:         %5d\n" data_block_count;
   Printf.printf "    max drop count:           %5d\n" max_drop_count;
   Printf.printf "    data block size:          %5d\n" setup.data_block_size;
-  Printf.printf "    redundancy:               %8.3f%%\n" redundancy;
-  Printf.printf "    data loss rate:           %8.3f%%\n" (100.0 *. setup.data_loss_rate);
-  Printf.printf "    rounds:                   %d\n" setup.rounds
+  Printf.printf "    redundancy:               %9.3f%%\n" redundancy;
+  Printf.printf "    data loss rate:           %9.3f%%\n" (100.0 *. setup.data_loss_rate);
+  Printf.printf "    rounds:                   %5d\n" setup.rounds
 
 let print_stats (setup : setup) (stats : combined_stats) =
   let s_to_us_multiplier = 1_000_000.0 in
