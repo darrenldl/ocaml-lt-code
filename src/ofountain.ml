@@ -130,7 +130,7 @@ module Encode = struct
   let reset_encoder (encoder : encoder) : unit =
     Utils.zero_cstruct_array encoder.drop_data_buffer;
     encoder.cur_drop_index <- 0;
-    let regen_cycle = 100 in
+    let regen_cycle = 50 in
     assert (encoder.cycle <= regen_cycle);
     if encoder.cycle = regen_cycle then (
       gen_degrees_onto encoder.param encoder.degrees;
