@@ -1,15 +1,4 @@
-let seed = Rand.gen_int_global max_int
-
-let hash (x : int) =
-  let r =
-  abs (seed lxor x)
-  land
-  max_int
-  in
-  assert (r >= 0);
-  r
-
-module H = Hashtbl.Make (struct type t = int let equal = Int.equal let hash = hash end)
+module H = Hashtbl.Make (struct type t = int let equal = Int.equal let hash = Rand.hash_int end)
 
 type t = unit H.t
 
