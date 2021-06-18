@@ -1,7 +1,8 @@
 module Param = Param
 module Drop_set = Drop_set
 
-let get_data_block_indices_onto (param : Param.t) (drop : Drop.t) (onto : int array) : unit =
+let get_data_block_indices_onto (param : Param.t) (drop : Drop.t)
+    (onto : int array) : unit =
   let systematic = Param.systematic param in
   let data_block_count = Param.data_block_count param in
   let rec aux prng_state degree set =
@@ -13,26 +14,24 @@ let get_data_block_indices_onto (param : Param.t) (drop : Drop.t) (onto : int ar
   let drop_index = Drop.index drop in
   if systematic && drop_index < data_block_count then (
     assert (degree = 1);
-    onto.(0) <- drop_index;
-    )
+    onto.(0) <- drop_index)
+  else if degree >= data_block_count / 4 then
+    let prng_state = Rand.make (Drop.index drop) in
+    let pick_start = Rand.gen_int prng_state data_block_count in
+    for i = 0 to degree - 1 do
+      let pick = (i + pick_start) mod degree in
+      onto.(i) <- pick
+    done
   else
-    (if degree >= data_block_count / 4 then
-     let prng_state = Rand.make (Drop.index drop) in
-     let pick_start = Rand.gen_int prng_state data_block_count in
-     for i = 0 to degree - 1 do
-       let pick = (i + pick_start) mod degree in
-       onto.(i) <- pick
-     done
-    else
-      let set = Hash_int_set.create degree in
-      let prng_state = Rand.make (Drop.index drop) in
-      aux prng_state degree set;
-      let c = ref 0 in
-      Hash_int_set.iter
-        (fun i ->
-          onto.(!c) <- i;
-          c := !c + 1)
-        set)
+    let set = Hash_int_set.create degree in
+    let prng_state = Rand.make (Drop.index drop) in
+    aux prng_state degree set;
+    let c = ref 0 in
+    Hash_int_set.iter
+      (fun i ->
+        onto.(!c) <- i;
+        c := !c + 1)
+      set
 
 let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
   let arr = Array.make (Drop.degree drop) 0 in
@@ -52,24 +51,20 @@ module Encode = struct
     let max_drop_count = Param.max_drop_count param in
     assert (Array.length onto = max_drop_count);
     let systematic = Param.systematic param in
-    (
     if systematic then (
-      for i=0 to data_block_count-1 do
+      for i = 0 to data_block_count - 1 do
         onto.(i) <- 1
-     done;
-        let n = max_drop_count - data_block_count in
-        if n > 0 then (
-          Dist.choose_onto ~offset:data_block_count (Param.dist param) onto;
-          (* we amplify the coverage of the parity drops *)
-          let parity_to_data_ratio = (data_block_count + n - 1) / n in
-          let multiplier = parity_to_data_ratio * 20 in
-          for i = data_block_count to max_drop_count-1 do
-            onto.(i) <- min data_block_count (onto.(i) * multiplier)
       done;
-            );
-        )
-    else Dist.choose_onto (Param.dist param) onto
-    );
+      let n = max_drop_count - data_block_count in
+      if n > 0 then (
+        Dist.choose_onto ~offset:data_block_count (Param.dist param) onto;
+        (* we amplify the coverage of the parity drops *)
+        let parity_to_data_ratio = (data_block_count + n - 1) / n in
+        let multiplier = parity_to_data_ratio * 20 in
+        for i = data_block_count to max_drop_count - 1 do
+          onto.(i) <- min data_block_count (onto.(i) * multiplier)
+        done))
+    else Dist.choose_onto (Param.dist param) onto;
     (* fix a random drop to be degree 1 to ensure decoding is at least possible *)
     if not systematic then onto.(Rand.gen_int_global max_drop_count) <- 1
 
