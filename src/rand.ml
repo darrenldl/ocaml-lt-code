@@ -18,13 +18,19 @@ let hash_int (x : int) : int =
   hash_int64 (Int64.of_int x)
 
 let gen_int64 (state : state) (bound : int64) : int64 =
-  let x = hash_int64 !state in
-  assert (x <> 0L);
-  state := x;
-  let x = if x = Int64.max_int then Int64.(pred max_int) else x in
-  let x = Int64.logand x 0x7FFFFFFF_FFFFFFFFL in
-  let r = Int64.rem x bound in
-  r
+  let mask = 0x7FFFFFFF_FFFFFFFFL in
+  let rec aux state bound retry_start =
+    let x = hash_int64 !state in
+    assert (x <> 0L);
+    state := x;
+    (* let x = if x = Int64.max_int then Int64.(pred max_int) else x in *)
+    let x = Int64.logand x mask in
+    if x < retry_start then
+      Int64.rem x bound
+    else
+      aux state bound retry_start
+  in
+  aux state bound Int64.(sub mask (rem mask bound))
 
 let global =
   Random.self_init ();
