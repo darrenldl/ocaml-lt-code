@@ -12,16 +12,28 @@ let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
   if systematic && Drop.index drop < data_block_count then [| Drop.index drop |]
   else
     let degree = Drop.degree drop in
-    let set = Hash_int_set.create degree in
-    let prng_state = Rand.make (Drop.index drop) in
-    aux prng_state degree set;
-    let arr = Array.make (Drop.degree drop) 0 in
+    let arr = Array.make degree 0 in
+    (
+    if degree >= data_block_count / 4 then (
+      let prng_state = Rand.make (Drop.index drop) in
+      let pick_start = Rand.gen_int prng_state data_block_count in
+      for i=0 to degree-1 do
+        let pick = (i + pick_start) mod degree in
+        arr.(i) <- pick;
+      done
+    )
+    else (
+        let set = Hash_int_set.create degree in
+        let prng_state = Rand.make (Drop.index drop) in
+        aux prng_state degree set;
     let c = ref 0 in
     Hash_int_set.iter
       (fun i ->
         arr.(!c) <- i;
         c := !c + 1)
       set;
+        )
+    );
     arr
 
 module Encode = struct
