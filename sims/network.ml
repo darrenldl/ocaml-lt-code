@@ -1,6 +1,6 @@
 open Core
 
-let encode_all_upfront = true
+let encode_all_upfront = false
 
 let rounds = 100
 
