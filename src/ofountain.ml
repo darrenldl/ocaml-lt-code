@@ -134,9 +134,10 @@ module Encode = struct
     else None
 
   let encode_all (encoder : encoder) : Drop.t array =
-    let drops_left = Param.max_drop_count encoder.param - encoder.cur_drop_index in
-    Array.init drops_left (fun _ ->
-      Option.get @@ encode_one encoder)
+    let drops_left =
+      Param.max_drop_count encoder.param - encoder.cur_drop_index
+    in
+    Array.init drops_left (fun _ -> Option.get @@ encode_one encoder)
 
   let encode ?(systematic = true) ?drop_data_buffer ~max_drop_count
       (data_blocks : Cstruct.t array) : (Param.t * Drop.t array, error) result =
@@ -358,8 +359,7 @@ module Decode = struct
   let max_tries_reached (decoder : decoder) : bool =
     decoder.graph.drop_fill_count = Param.max_drop_count decoder.param
 
-  let decode_one (decoder : decoder) (drop : Drop.t) :
-      (status, error) result =
+  let decode_one (decoder : decoder) (drop : Drop.t) : (status, error) result =
     if Cstruct.length (Drop.data drop) <> decoder.data_block_size then
       Error `Invalid_drop_size
     else
@@ -378,14 +378,17 @@ module Decode = struct
                 if max_tries_reached decoder then Error `Cannot_recover
                 else Ok `Ongoing)
 
-  let decode_all (decoder : decoder) (drops : Drop_set.t) : (Cstruct.t array, error) result =
+  let decode_all (decoder : decoder) (drops : Drop_set.t) :
+      (Cstruct.t array, error) result =
     let rec aux decoder drops =
       let x = Drop_set.choose drops in
       let drops = Drop_set.remove x drops in
       match decode_one decoder x with
-    | Error e -> Error e
-    | Ok `Ongoing -> if max_tries_reached decoder then Error `Cannot_recover else aux decoder drops
-    | Ok (`Success arr) -> Ok arr
+      | Error e -> Error e
+      | Ok `Ongoing ->
+          if max_tries_reached decoder then Error `Cannot_recover
+          else aux decoder drops
+      | Ok (`Success arr) -> Ok arr
     in
     aux decoder drops
 
@@ -399,9 +402,7 @@ module Decode = struct
           ?data_block_buffer param
       with
       | Error e -> Error e
-      | Ok decoder -> (
-        decode_all decoder drops
-      )
+      | Ok decoder -> decode_all decoder drops
 end
 
 let max_drop_count = Constants.max_drop_count

@@ -40,16 +40,16 @@ type encode_error =
   | `Invalid_drop_data_buffer
   ]
 
-  (** {2 Basic} *)
 val encode :
   ?systematic:bool ->
   ?drop_data_buffer:Cstruct.t array ->
   max_drop_count:int ->
   Cstruct.t array ->
   (Param.t * drop array, encode_error) result
+(** {2 Basic} *)
 
-  (** {2 Advanced} *)
 type encoder
+(** {2 Advanced} *)
 
 val make_encoder :
   ?drop_data_buffer:Cstruct.t array ->
@@ -86,7 +86,7 @@ type decode_error =
   | `Cannot_recover
   ]
 
-  (** {2 Basic} *)
+(** {2 Basic} *)
 
 val decode :
   ?data_block_buffer:Cstruct.t array ->
@@ -94,7 +94,7 @@ val decode :
   Drop_set.t ->
   (Cstruct.t array, decode_error) result
 
-  (** {2 Advanced} *)
+(** {2 Advanced} *)
 
 type decoder
 
