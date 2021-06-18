@@ -119,10 +119,8 @@ module Encode = struct
     assert (encoder.cycle <= regen_cycle);
     if encoder.cycle = regen_cycle then (
       encoder.degrees <- gen_degrees encoder.param;
-      encoder.cycle <- 0;
-    )
-    else
-      encoder.cycle <- encoder.cycle + 1
+      encoder.cycle <- 0)
+    else encoder.cycle <- encoder.cycle + 1
 
   let encode_one (encoder : encoder) : Drop.t option =
     let drop_count = Param.max_drop_count encoder.param in
