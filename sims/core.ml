@@ -242,7 +242,8 @@ let print_setup (setup : setup) =
   Printf.printf "    max drop count:           %5d\n" max_drop_count;
   Printf.printf "    data block size:          %5d\n" setup.data_block_size;
   Printf.printf "    redundancy:               %9.3f%%\n" redundancy;
-  Printf.printf "    data loss rate:           %9.3f%%\n" (100.0 *. setup.data_loss_rate);
+  Printf.printf "    data loss rate:           %9.3f%%\n"
+    (100.0 *. setup.data_loss_rate);
   Printf.printf "    rounds:                   %5d\n" setup.rounds
 
 let print_stats (setup : setup) (stats : combined_stats) =
