@@ -85,7 +85,6 @@ module Encode = struct
     data_blocks : Cstruct.t array;
     drop_data_buffer : Cstruct.t array;
     mutable cur_drop_index : int;
-    mutable cycle : int;
   }
 
   let make_encoder ?(drop_data_buffer : Cstruct.t array option)
@@ -124,18 +123,12 @@ module Encode = struct
                 drop_data_buffer;
                 data_blocks;
                 cur_drop_index = 0;
-                cycle = 0;
               }
 
   let reset_encoder (encoder : encoder) : unit =
     Utils.zero_cstruct_array encoder.drop_data_buffer;
     encoder.cur_drop_index <- 0;
-    let regen_cycle = 10 in
-    assert (encoder.cycle <= regen_cycle);
-    if encoder.cycle = regen_cycle then (
-      gen_degrees_onto encoder.param encoder.degrees;
-      encoder.cycle <- 0)
-    else encoder.cycle <- encoder.cycle + 1
+    gen_degrees_onto encoder.param encoder.degrees
 
   let encode_one (encoder : encoder) : Drop.t option =
     let drop_count = Param.max_drop_count encoder.param in
