@@ -257,13 +257,3 @@ let run_and_print (setup : setup) =
     else "non-systematic");
   print_setup setup;
   print_stats setup stats
-
-let () =
-  Random.self_init ();
-  let setups =
-    [
-      make_setup ~systematic:false ~data_block_count:1000 ~max_redundancy:0.30
-        ~data_block_size:1300 ~data_loss_rate:0.01 ~rounds:200;
-    ]
-  in
-  List.iter run_and_print setups

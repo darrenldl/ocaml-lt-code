@@ -20,14 +20,18 @@ lib :
 test : lib
 	OCAMLRUNPARAM=b dune runtest --force src/
 
-.PHONY: sim-main
-sim-main : lib
-	dune exec --release --force ./sims/main.exe
+.PHONY: sim-storage
+sim-storage : lib
+	dune exec --release --force ./sims/storage.exe
 
-.PHONY: sim-main-prof
-sim-main-prof : lib
-	OCAMLRUNPARA=b dune build ./sims/main.exe
-	perf record --call-graph=dwarf -- _build/default/sims/main.exe
+.PHONY: sim-network
+sim-network : lib
+	dune exec --release --force ./sims/network.exe
+
+.PHONY: sim-storage-prof
+sim-storage-prof : lib
+	OCAMLRUNPARA=b dune build ./sims/storage.exe
+	perf record --call-graph=dwarf -- _build/default/sims/storage.exe
 
 .PHONY: cov-desc-test
 cov-desc-test : desc

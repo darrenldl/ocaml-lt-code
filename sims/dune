@@ -1,6 +1,6 @@
 (executables
  (flags     (-w "+a-4-9-29-40-42-44-48@8"))
- (names main)
+ (names storage network)
  (libraries ofountain
             cstruct
             fmt
