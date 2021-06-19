@@ -9,7 +9,7 @@ let create seed : state =
 let hash_int32 (x : int32) : int32 =
   let x = Int64.of_int32 x in
   let x = Int64.(mul x 48271L) in
-  let x = Int64.(rem x 0x7FFF_FFFFL) in
+  let x = Int64.(unsigned_rem x 0x7FFF_FFFFL) in
   Int64.to_int32 x
 
 let hash_int (x : int) : int = Int32.to_int @@ hash_int32 (Int32.of_int x)
