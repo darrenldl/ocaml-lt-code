@@ -22,11 +22,11 @@ test : lib
 
 .PHONY: sim-storage
 sim-storage : lib
-	dune exec --release --force ./sims/storage.exe
+	dune exec --release --force --no-buffer ./sims/storage.exe
 
 .PHONY: sim-network
 sim-network : lib
-	dune exec --release --force ./sims/network.exe
+	dune exec --release --force --no-buffer ./sims/network.exe
 
 .PHONY: sim-storage-prof
 sim-storage-prof : lib
