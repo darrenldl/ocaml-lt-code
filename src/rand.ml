@@ -4,14 +4,11 @@ let mask = 0x7FFFFFFFl
 
 let create seed : state =
   let seed = Int32.of_int seed in
-  ref
-    (if Int32.equal seed 0l then Int32.succ 0l
-    else Int32.logand seed mask
-    )
+  ref (if Int32.equal seed 0l then Int32.succ 0l else Int32.logand seed mask)
 
 let hash_int32 (x : int32) : int32 =
   let x = Int64.of_int32 x in
-  let x = Int64.(mul x 48271L) in 
+  let x = Int64.(mul x 48271L) in
   let x = Int64.(rem x 0x7FFF_FFFFL) in
   Int64.to_int32 x
 
