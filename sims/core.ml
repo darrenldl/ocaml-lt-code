@@ -75,7 +75,7 @@ let make_setup ~systematic ~encode_all_upfront ~data_block_count ~max_redundancy
   let encoder_setup_time, encoder =
     time_function (fun () ->
         Result.get_ok
-        @@ Ofountain.make_encoder ~drop_data_buffer param data_blocks)
+        @@ Ofountain.create_encoder ~drop_data_buffer param data_blocks)
   in
   let data_block_buffer =
     Array.init (Ofountain.Param.data_block_count param) (fun _ ->
@@ -84,7 +84,7 @@ let make_setup ~systematic ~encode_all_upfront ~data_block_count ~max_redundancy
   let decoder_setup_time, decoder =
     time_function (fun () ->
         Result.get_ok
-        @@ Ofountain.make_decoder ~data_block_buffer ~data_block_size param)
+        @@ Ofountain.create_decoder ~data_block_buffer ~data_block_size param)
   in
   {
     param;
