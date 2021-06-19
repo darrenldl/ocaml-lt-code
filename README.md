@@ -1,5 +1,22 @@
 # Ofountain
+
 OCaml implementation of Luby transform code
+
+## Technical details
+
+PRNG and hash used are based on xorshift to achieve good performance.
+
+Degree selection of drops is randomly generated once during construction of encoder,
+and randomly regenerated once during resetting. This is to ensure a bad selection
+does not have a lasting effect.
+
+The robust soliton distribution is used for the degree selection, with constant
+factors tuned to favour low degree count.
+There is an additional modification for the case of systematic encoding,
+in which degrees of parity drops are multiplied
+by a factor proportional to the ratio between data blocks and parity drops.
+This essentially "amplifies" the coverage of each parity drop due to
+the reduced total number of parity drops.
 
 ## License
 
