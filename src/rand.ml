@@ -24,7 +24,7 @@ let gen' (state : state) (bound : int64) : int64 =
 
 let global =
   Random.self_init ();
-  let seed = Random.int 0x7FFF_FFFF in
+  let seed = Random.int 0x0FFF_FFFF in
   create seed
 
 let gen_int (state : state) (bound : int) : int =
