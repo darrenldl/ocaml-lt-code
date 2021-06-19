@@ -4,7 +4,7 @@ OCaml implementation of Luby transform code
 
 ## Technical details
 
-PRNG and hash used are based on xorshift to achieve good performance
+PRNG and hash used are based on xorshift to achieve good performance.
 
 Degree selection of drops is randomly generated once during construction of encoder,
 and randomly regenerated once during resetting. This is to ensure a bad selection
