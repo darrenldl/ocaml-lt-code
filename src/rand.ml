@@ -15,10 +15,10 @@ let hash_int (x : int) : int = Int64.to_int @@ hash' (Int64.of_int x)
 let gen' (state : state) (bound : int64) : int64 =
   let rec aux state bound retry_start =
     let x = hash' !state in
-    assert (x <> 0L);
     state := x;
     (* let x = if x = Int64.max_int then Int64.(pred max_int) else x in *)
-    if x < retry_start then Int64.unsigned_rem x bound else aux state bound retry_start
+    if x < retry_start then Int64.unsigned_rem x bound
+    else aux state bound retry_start
   in
   aux state bound Int64.(sub modulus (unsigned_rem modulus bound))
 
