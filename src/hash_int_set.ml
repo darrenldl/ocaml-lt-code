@@ -10,7 +10,7 @@ type t = unit H.t
 
 let create size : t = H.create size
 
-let add (t : t) (x : int) : unit = H.add t x ()
+let add (t : t) (x : int) : unit = H.replace t x ()
 
 let mem (t : t) (x : int) : bool = H.mem t x
 

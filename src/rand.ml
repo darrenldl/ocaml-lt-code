@@ -1,6 +1,6 @@
 type state = int64 ref
 
-let make seed : state =
+let create seed : state =
   let seed = Int64.of_int seed in
   ref
     (if Int64.equal seed 0L then Int64.succ 0L
@@ -29,7 +29,7 @@ let gen_int64 (state : state) (bound : int64) : int64 =
 let global =
   Random.self_init ();
   let seed = Random.int 0x0FFFFFFF in
-  make seed
+  create seed
 
 let gen_int64_global bound = gen_int64 global bound
 

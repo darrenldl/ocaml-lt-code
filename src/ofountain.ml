@@ -16,7 +16,7 @@ let get_data_block_indices_onto (param : Param.t) (drop : Drop.t)
     assert (degree = 1);
     onto.(0) <- drop_index)
   else if degree >= data_block_count / 4 then
-    let prng_state = Rand.make (Drop.index drop) in
+    let prng_state = Rand.create (Drop.index drop) in
     let pick_start = Rand.gen_int prng_state data_block_count in
     for i = 0 to degree - 1 do
       let pick = (i + pick_start) mod degree in
@@ -24,7 +24,7 @@ let get_data_block_indices_onto (param : Param.t) (drop : Drop.t)
     done
   else
     let set = Hash_int_set.create degree in
-    let prng_state = Rand.make (Drop.index drop) in
+    let prng_state = Rand.create (Drop.index drop) in
     aux prng_state degree set;
     let c = ref 0 in
     Hash_int_set.iter
@@ -82,7 +82,7 @@ module Encode = struct
     mutable cur_drop_index : int;
   }
 
-  let make_encoder ?(drop_data_buffer : Cstruct.t array option)
+  let create_encoder ?(drop_data_buffer : Cstruct.t array option)
       (param : Param.t) data_blocks : (encoder, error) result =
     if Array.length data_blocks <> Param.data_block_count param then
       Error `Invalid_data_block_count
@@ -161,7 +161,7 @@ module Encode = struct
         | (`Invalid_data_block_count | `Invalid_drop_count) as e ->
             Error (e :> error))
     | Ok param -> (
-        match make_encoder ?drop_data_buffer param data_blocks with
+        match create_encoder ?drop_data_buffer param data_blocks with
         | Error e -> Error (e :> error)
         | Ok encoder ->
             let arr =
@@ -193,7 +193,7 @@ module Decode = struct
       drop_edges : bucket array;
     }
 
-    let make param =
+    let create param =
       let data_block_count = Param.data_block_count param in
       let max_drop_count = Param.max_drop_count param in
       {
@@ -249,7 +249,7 @@ module Decode = struct
     drops : Cstruct.t option array;
   }
 
-  let make_decoder ?data_block_buffer ~data_block_size param :
+  let create_decoder ?data_block_buffer ~data_block_size param :
       (decoder, error) result =
     let data_block_count = Param.data_block_count param in
     if data_block_size < 0 then Error `Invalid_data_block_size
@@ -276,7 +276,7 @@ module Decode = struct
           Ok
             {
               param;
-              graph = Graph.make param;
+              graph = Graph.create param;
               data_block_size;
               data_blocks;
               drops = Array.make (Param.max_drop_count param) None;
@@ -408,7 +408,7 @@ module Decode = struct
     if Drop_set.cardinal drops = 0 then Error `Cannot_recover
     else
       match
-        make_decoder
+        create_decoder
           ~data_block_size:(Cstruct.length @@ Drop.data @@ Drop_set.choose drops)
           ?data_block_buffer param
       with
@@ -428,7 +428,7 @@ type encode_error = Encode.error
 
 type encoder = Encode.encoder
 
-let make_encoder = Encode.make_encoder
+let create_encoder = Encode.create_encoder
 
 let reset_encoder = Encode.reset_encoder
 
@@ -460,7 +460,7 @@ type decoder = Decode.decoder
 
 type decode_status = Decode.status
 
-let make_decoder = Decode.make_decoder
+let create_decoder = Decode.create_decoder
 
 let reset_decoder = Decode.reset_decoder
 

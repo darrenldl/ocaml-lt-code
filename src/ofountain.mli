@@ -51,7 +51,7 @@ val encode :
 type encoder
 (** {2 Advanced} *)
 
-val make_encoder :
+val create_encoder :
   ?drop_data_buffer:Cstruct.t array ->
   Param.t ->
   Cstruct.t array ->
@@ -98,7 +98,7 @@ val decode :
 
 type decoder
 
-val make_decoder :
+val create_decoder :
   ?data_block_buffer:Cstruct.t array ->
   data_block_size:int ->
   Param.t ->

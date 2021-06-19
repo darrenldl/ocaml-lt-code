@@ -1,6 +1,6 @@
 type state
 
-val make : int -> state
+val create : int -> state
 
 val gen_int : state -> int -> int
 
