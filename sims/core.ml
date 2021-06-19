@@ -223,7 +223,7 @@ let run (setup : setup) : combined_stats =
     success_rate = float_of_int sum.total_success_count /. rounds;
   }
 
-let calc_redundancy (setup : setup) : float =
+let calc_max_redundancy (setup : setup) : float =
   let data_block_count = Ofountain.data_block_count_of_encoder setup.encoder in
   let max_drop_count = Ofountain.max_drop_count_of_encoder setup.encoder in
   100.0
@@ -233,7 +233,7 @@ let calc_redundancy (setup : setup) : float =
 let print_setup (setup : setup) =
   let data_block_count = Ofountain.data_block_count_of_encoder setup.encoder in
   let max_drop_count = Ofountain.max_drop_count_of_encoder setup.encoder in
-  let redundancy = calc_redundancy setup in
+  let max_redundancy = calc_max_redundancy setup in
   Printf.printf "  setup:\n";
   Printf.printf "    systematic:               %b\n"
     (Ofountain.encoder_is_systematic setup.encoder);
@@ -241,7 +241,7 @@ let print_setup (setup : setup) =
   Printf.printf "    data block count:         %5d\n" data_block_count;
   Printf.printf "    max drop count:           %5d\n" max_drop_count;
   Printf.printf "    data block size:          %5d\n" setup.data_block_size;
-  Printf.printf "    redundancy:               %9.3f%%\n" redundancy;
+  Printf.printf "    max redundancy:           %9.3f%%\n" max_redundancy;
   Printf.printf "    data loss rate:           %9.3f%%\n"
     (100.0 *. setup.data_loss_rate);
   Printf.printf "    rounds:                   %5d\n" setup.rounds
@@ -285,11 +285,11 @@ let print_stats (setup : setup) (stats : combined_stats) =
     (100.0 *. stats.average_overhead)
 
 let run_and_print (setup : setup) =
-  let redundancy = calc_redundancy setup in
+  let max_redundancy = calc_max_redundancy setup in
   Printf.printf
-    "Simulation at data loss rate of %.1f%%, at redundancy of %.1f%%, %s\n"
+    "Simulation at data loss rate of %.1f%%, at max redundancy of %.1f%%, %s\n"
     (100.0 *. setup.data_loss_rate)
-    redundancy
+    max_redundancy
     (if Ofountain.Param.systematic setup.param then "systematic"
     else "non-systematic");
   print_setup setup;

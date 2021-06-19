@@ -7,13 +7,13 @@ let rounds = 100
 let setups =
   [
     make_setup ~systematic:false ~encode_all_upfront ~data_block_count:1000
-      ~max_redundancy:1.00 ~data_block_size:1300 ~data_loss_rate:0.50 ~rounds;
+      ~max_redundancy:2.00 ~data_block_size:1300 ~data_loss_rate:0.50 ~rounds;
     make_setup ~systematic:true ~encode_all_upfront ~data_block_count:1000
-      ~max_redundancy:1.00 ~data_block_size:1300 ~data_loss_rate:0.50 ~rounds;
+      ~max_redundancy:2.00 ~data_block_size:1300 ~data_loss_rate:0.50 ~rounds;
     make_setup ~systematic:false ~encode_all_upfront ~data_block_count:1000
-      ~max_redundancy:1.00 ~data_block_size:1300 ~data_loss_rate:0.40 ~rounds;
+      ~max_redundancy:2.00 ~data_block_size:1300 ~data_loss_rate:0.40 ~rounds;
     make_setup ~systematic:true ~encode_all_upfront ~data_block_count:1000
-      ~max_redundancy:1.00 ~data_block_size:1300 ~data_loss_rate:0.40 ~rounds;
+      ~max_redundancy:2.00 ~data_block_size:1300 ~data_loss_rate:0.40 ~rounds;
     make_setup ~systematic:false ~encode_all_upfront ~data_block_count:1000
       ~max_redundancy:1.00 ~data_block_size:1300 ~data_loss_rate:0.30 ~rounds;
     make_setup ~systematic:true ~encode_all_upfront ~data_block_count:1000
