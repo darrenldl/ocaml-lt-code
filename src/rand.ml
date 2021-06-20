@@ -8,7 +8,7 @@ let create seed : state =
 
 let hash' (x : int64) : int64 =
   let x = Int64.(mul x 48271L) in
-  Int64.(unsigned_rem x 0x7FFF_FFFFL)
+  Int64.(unsigned_rem x modulus)
 
 let hash_int (x : int) : int = Int64.to_int @@ hash' (Int64.of_int x)
 
