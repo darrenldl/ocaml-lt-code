@@ -31,3 +31,6 @@ Code files are licensed under the MIT license as specified in the `LICENSE` file
 - M.Luby, "LT Codes", The 43rd Annual IEEE Symposium on Foundations of Computer Science, 2002. 
 
 - Tirronen, Tuomas (2005). "Optimal Degree Distributions for LT Codes in Small Cases". Helsinki University of Technology.
+
+- Lehmer random number generator implementation is based on sample C99 code described on
+  [Wikipedia](https://en.wikipedia.org/wiki/Lehmer_random_number_generator)
