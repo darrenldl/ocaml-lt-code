@@ -10,3 +10,5 @@ fuzz-*-output
 fuzz-logs/
 /perf.data
 /perf.data.old
+sim-storage.txt
+sim-network.txt
