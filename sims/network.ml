@@ -2,7 +2,7 @@ open Core
 
 let encode_all_upfront = false
 
-let rounds = 100
+let rounds = 200
 
 let setups =
   [

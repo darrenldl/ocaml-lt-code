@@ -1,0 +1,86 @@
+dune build src
+dune exec --release --force --no-buffer ./sims/storage.exe
+Simulation at data loss rate of 1.0%, at max redundancy of 20.0%, systematic
+  setup:
+    systematic:               true
+    encode all drops upfront: true
+    data block count:           100
+    max drop count:             120
+    data block size:            490
+    max redundancy:              20.000%
+    data loss rate:               1.000%
+    rounds:                     200
+  stats:
+    encoder setup time:                 165.224us
+    decoder setup time:                  92.030us
+    average encoding time per round:   1346.817us
+    average decoding time per round:    871.549us
+    average encoding time per drop:      11.223us
+    average decoding time per drop:       7.263us
+    average encoding data Mbytes/s:      34.697
+    average decoding data Mbytes/s:      53.617
+    success rate:                        68.500%
+    average overhead:                    20.000%
+Simulation at data loss rate of 2.0%, at max redundancy of 20.0%, systematic
+  setup:
+    systematic:               true
+    encode all drops upfront: true
+    data block count:           100
+    max drop count:             120
+    data block size:           4000
+    max redundancy:              20.000%
+    data loss rate:               2.000%
+    rounds:                     200
+  stats:
+    encoder setup time:                 211.000us
+    decoder setup time:                  78.917us
+    average encoding time per round:  10003.724us
+    average decoding time per round:   6921.194us
+    average encoding time per drop:      83.364us
+    average decoding time per drop:      57.677us
+    average encoding data Mbytes/s:      38.133
+    average decoding data Mbytes/s:      55.116
+    success rate:                        36.500%
+    average overhead:                    20.000%
+Simulation at data loss rate of 1.0%, at max redundancy of 20.0%, systematic
+  setup:
+    systematic:               true
+    encode all drops upfront: true
+    data block count:           100
+    max drop count:             120
+    data block size:           4000
+    max redundancy:              20.000%
+    data loss rate:               1.000%
+    rounds:                     200
+  stats:
+    encoder setup time:                 239.849us
+    decoder setup time:                  93.937us
+    average encoding time per round:   9614.748us
+    average decoding time per round:   3430.849us
+    average encoding time per drop:      80.123us
+    average decoding time per drop:      28.590us
+    average encoding data Mbytes/s:      39.675
+    average decoding data Mbytes/s:     111.188
+    success rate:                        70.000%
+    average overhead:                    20.000%
+Simulation at data loss rate of 0.5%, at max redundancy of 20.0%, systematic
+  setup:
+    systematic:               true
+    encode all drops upfront: true
+    data block count:           100
+    max drop count:             120
+    data block size:           4000
+    max redundancy:              20.000%
+    data loss rate:               0.500%
+    rounds:                     200
+  stats:
+    encoder setup time:                 318.050us
+    decoder setup time:                 101.089us
+    average encoding time per round:   9814.192us
+    average decoding time per round:   1567.992us
+    average encoding time per drop:      81.785us
+    average decoding time per drop:      13.067us
+    average encoding data Mbytes/s:      38.869
+    average decoding data Mbytes/s:     243.286
+    success rate:                        89.000%
+    average overhead:                    20.000%
