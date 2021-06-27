@@ -3,7 +3,7 @@ module H = Hashtbl.Make (struct
 
   let equal = Int.equal
 
-  let hash = Rand.hash_int
+  let hash x = Rand.hash_int x
 end)
 
 type t = unit H.t
