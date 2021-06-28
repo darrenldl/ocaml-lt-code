@@ -4,7 +4,7 @@ let modulus = 0x7FFF_FFFFL
 
 let create_rng seed : rng =
   let seed = Int64.of_int seed in
-  { state = Int64.(logand (logor seed 1L) modulus) }
+  { state = (if seed = 0L then 1L else Int64.(logand seed modulus)) }
 
 let hash' (x : int64) : int64 =
   let x = Int64.(mul x 48271L) in
