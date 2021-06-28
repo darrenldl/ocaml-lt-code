@@ -1,4 +1,4 @@
-let max_index = Int32.to_int Int32.max_int
+let max_index = 0x7FFF_FFFE
 
 let max_drop_count = max_index + 1
 

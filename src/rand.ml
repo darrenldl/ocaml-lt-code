@@ -8,6 +8,8 @@ type bounded_rng = {
 
 let modulus = 0x7FFF_FFFFL
 
+let check_bound bound = assert (Int64.unsigned_compare bound modulus < 0)
+
 let init_state seed =
   let seed = Int64.of_int seed in
   if seed = 0L then 1L else Int64.(logand seed modulus)
@@ -18,6 +20,7 @@ let create_rng seed : rng = { state = init_state seed }
 
 let create_bounded_rng ~bound seed : bounded_rng =
   let bound = Int64.of_int bound in
+  check_bound bound;
   let threshold = calc_threshold bound in
   { state = init_state seed; bound; threshold }
 
@@ -34,6 +37,7 @@ let gen' (rng : rng) (bound : int64) : int64 =
     if Int64.unsigned_compare x threshold >= 0 then Int64.unsigned_rem x bound
     else aux rng bound threshold
   in
+  check_bound bound;
   aux rng bound (calc_threshold bound)
 
 let gen_bounded' (rng : bounded_rng) : int64 =
