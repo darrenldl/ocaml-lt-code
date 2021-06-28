@@ -16,16 +16,16 @@ let get_data_block_indices_onto (param : Param.t) (drop : Drop.t)
     assert (degree = 1);
     onto.(0) <- drop_index)
   else if degree >= data_block_count / 4 then
-    let prng_state = Rand.create (Drop.index drop) in
-    let pick_start = Rand.gen_int prng_state data_block_count in
+    let rng = Rand.create_rng (Drop.index drop) in
+    let pick_start = Rand.gen_int rng data_block_count in
     for i = 0 to degree - 1 do
       let pick = (i + pick_start) mod degree in
       onto.(i) <- pick
     done
   else
     let set = Hash_int_set.create degree in
-    let prng_state = Rand.create (Drop.index drop) in
-    aux prng_state degree set;
+    let rng = Rand.create_rng (Drop.index drop) in
+    aux rng degree set;
     let c = ref 0 in
     Hash_int_set.iter
       (fun i ->
