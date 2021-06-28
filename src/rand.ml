@@ -1,12 +1,13 @@
-type rng = {
-  mutable state : int64
-}
+type rng = { mutable state : int64 }
 
 let modulus = 0x7FFF_FFFFL
 
 let create_rng seed : rng =
   let seed = Int64.of_int seed in
-  { state = (if Int64.equal seed 0L then Int64.succ 0L else Int64.logand seed modulus) }
+  {
+    state =
+      (if Int64.equal seed 0L then Int64.succ 0L else Int64.logand seed modulus);
+  }
 
 let hash' (x : int64) : int64 =
   let x = Int64.(mul x 48271L) in
