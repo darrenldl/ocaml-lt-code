@@ -7,7 +7,7 @@ let get_data_block_indices_onto (param : Param.t) (drop : Drop.t)
   let data_block_count = Param.data_block_count param in
   let rec aux rng degree set =
     if Hash_int_set.cardinal set < degree then (
-      Hash_int_set.add set (Rand.gen_int rng data_block_count);
+      Hash_int_set.add set (Rand.gen_int_bounded rng);
       aux rng degree set)
   in
   let degree = Drop.degree drop in
@@ -16,15 +16,19 @@ let get_data_block_indices_onto (param : Param.t) (drop : Drop.t)
     assert (degree = 1);
     onto.(0) <- drop_index)
   else if degree >= data_block_count / 4 then
-    let rng = Rand.create_rng (Drop.index drop) in
-    let pick_start = Rand.gen_int rng data_block_count in
+    let rng =
+      Rand.create_bounded_rng ~bound:data_block_count (Drop.index drop)
+    in
+    let pick_start = Rand.gen_int_bounded rng in
     for i = 0 to degree - 1 do
       let pick = (i + pick_start) mod degree in
       onto.(i) <- pick
     done
   else
     let set = Hash_int_set.create degree in
-    let rng = Rand.create_rng (Drop.index drop) in
+    let rng =
+      Rand.create_bounded_rng ~bound:data_block_count (Drop.index drop)
+    in
     aux rng degree set;
     let c = ref 0 in
     Hash_int_set.iter
