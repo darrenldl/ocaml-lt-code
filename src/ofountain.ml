@@ -5,10 +5,10 @@ let get_data_block_indices_onto (param : Param.t) (drop : Drop.t)
     (onto : int array) : unit =
   let systematic = Param.systematic param in
   let data_block_count = Param.data_block_count param in
-  let rec aux prng_state degree set =
+  let rec aux rng degree set =
     if Hash_int_set.cardinal set < degree then (
-      Hash_int_set.add set (Rand.gen_int prng_state data_block_count);
-      aux prng_state degree set)
+      Hash_int_set.add set (Rand.gen_int rng data_block_count);
+      aux rng degree set)
   in
   let degree = Drop.degree drop in
   let drop_index = Drop.index drop in
