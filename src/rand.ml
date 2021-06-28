@@ -13,13 +13,13 @@ let hash' (x : int64) : int64 =
 let hash_int (x : int) : int = Int64.to_int @@ hash' (Int64.of_int x)
 
 let gen' (rng : rng) (bound : int64) : int64 =
-  let rec aux rng bound retry_start =
+  let rec aux rng bound threshold =
     let x = hash' rng.state in
     rng.state <- x;
-    if x < retry_start then Int64.unsigned_rem x bound
-    else aux rng bound retry_start
+    if Int64.unsigned_compare x threshold >= 0 then Int64.unsigned_rem x bound
+    else aux rng bound threshold
   in
-  aux rng bound Int64.(sub modulus (unsigned_rem modulus bound))
+  aux rng bound Int64.(unsigned_rem modulus bound)
 
 let global =
   Random.self_init ();
