@@ -15,15 +15,15 @@ let get_data_block_indices_onto (param : Param.t) (drop : Drop.t)
   if systematic && drop_index < data_block_count then (
     assert (degree = 1);
     onto.(0) <- drop_index)
-  else if degree >= data_block_count / 4 then
-    let rng =
-      Rand.create_bounded_rng ~bound:data_block_count (Drop.index drop)
-    in
-    let pick_start = Rand.gen_int_bounded rng in
-    for i = 0 to degree - 1 do
-      let pick = (i + pick_start) mod degree in
-      onto.(i) <- pick
-    done
+  (* else if data_block_count >= 10 && degree >= data_block_count / 10 then *)
+    (* let rng = *)
+      (* Rand.create_bounded_rng ~bound:data_block_count (Drop.index drop) *)
+    (* in *)
+    (* let pick_start = Rand.gen_int_bounded rng in *)
+    (* for i = 0 to degree - 1 do *)
+      (* let pick = (pick_start + i * 3) mod degree in *)
+      (* onto.(i) <- pick *)
+    (* done *)
   else
     let set = Hash_int_set.create degree in
     let rng =
@@ -64,7 +64,7 @@ module Encode = struct
         Dist.choose_onto ~offset:data_block_count (Param.dist param) onto;
         (* we amplify the coverage of the parity drops *)
         let parity_to_data_ratio = (data_block_count + n - 1) / n in
-        let multiplier = parity_to_data_ratio * 20 in
+        let multiplier = parity_to_data_ratio * 2 in
         for i = data_block_count to max_drop_count - 1 do
           onto.(i) <- min data_block_count (onto.(i) * multiplier)
         done))
