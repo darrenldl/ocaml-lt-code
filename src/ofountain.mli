@@ -23,11 +23,15 @@ module Param : sig
     (t, error) result
 end
 
+(** {1 Basic types} *)
+
 type drop
 
 val data_of_drop : drop -> Cstruct.t
 
 module Drop_set : Set.S with type elt = drop
+
+(** {1 Encoding} *)
 
 type encode_error =
   [ `Inconsistent_data_block_size
@@ -36,12 +40,21 @@ type encode_error =
   | `Invalid_drop_data_buffer
   ]
 
+val encode :
+  ?systematic:bool ->
+  ?drop_data_buffer:Cstruct.t array ->
+  max_drop_count:int ->
+  Cstruct.t array ->
+  (Param.t * drop array, encode_error) result
+(** {2 Basic} *)
+
 type encoder
+(** {2 Advanced} *)
 
 val create_encoder :
-  data_blocks:Cstruct.t array ->
-  drop_data_buffer:Cstruct.t array ->
+  ?drop_data_buffer:Cstruct.t array ->
   Param.t ->
+  Cstruct.t array ->
   (encoder, encode_error) result
 
 val reset_encoder : encoder -> unit
@@ -58,11 +71,11 @@ val data_block_size_of_encoder : encoder -> int
 
 val data_blocks_of_encoder : encoder -> Cstruct.t array
 
-val encode_one : encoder -> unit
+val encode_one : encoder -> drop option
 
-val encode_all : encoder -> unit
+val encode_all : encoder -> drop array
 
-val remaining_drops_of_encoder : encoder -> drop array
+(** {1 Decoding} *)
 
 type decode_error =
   [ `Invalid_drop_index
@@ -73,10 +86,21 @@ type decode_error =
   | `Cannot_recover
   ]
 
+(** {2 Basic} *)
+
+val decode :
+  ?data_block_buffer:Cstruct.t array ->
+  Param.t ->
+  Drop_set.t ->
+  (Cstruct.t array, decode_error) result
+
+(** {2 Advanced} *)
+
 type decoder
 
 val create_decoder :
-  data_block_buffer:Cstruct.t array ->
+  ?data_block_buffer:Cstruct.t array ->
+  data_block_size:int ->
   Param.t ->
   (decoder, decode_error) result
 
@@ -97,10 +121,10 @@ val drop_fill_count_of_decoder : decoder -> int
 val data_blocks_of_decoder : decoder -> Cstruct.t array option
 
 type decode_status =
-  [ `Success
+  [ `Success of Cstruct.t array
   | `Ongoing
   ]
 
 val decode_one : decoder -> drop -> (decode_status, decode_error) result
 
-val decode_all : decoder -> drop array -> bool array -> decode_error option
+val decode_all : decoder -> Drop_set.t -> (Cstruct.t array, decode_error) result
