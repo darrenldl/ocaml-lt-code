@@ -1,47 +1,43 @@
 module Param : sig
-type t
+  type t
 
-val systematic : t -> bool
+  val systematic : t -> bool
 
-val data_block_count : t -> int
+  val data_block_count : t -> int
 
-val max_drop_count : t -> int
+  val max_drop_count : t -> int
 
-val dist : t -> Dist.t
+  val dist : t -> Dist.t
 
-val make :
-  systematic:bool ->
-  data_block_count:int ->
-  max_drop_count:int ->
-  t
+  val make : systematic:bool -> data_block_count:int -> max_drop_count:int -> t
 end = struct
-type t = {
-  systematic : bool;
-  data_block_count : int;
-  max_drop_count : int;
-  dist : Dist.t;
-}
+  type t = {
+    systematic : bool;
+    data_block_count : int;
+    max_drop_count : int;
+    dist : Dist.t;
+  }
 
-let systematic t = t.systematic
+  let systematic t = t.systematic
 
-let data_block_count t = t.data_block_count
+  let data_block_count t = t.data_block_count
 
-let max_drop_count t = t.max_drop_count
+  let max_drop_count t = t.max_drop_count
 
-let dist t = t.dist
+  let dist t = t.dist
 
-let make ~systematic ~data_block_count ~max_drop_count : t =
-  assert (0 < data_block_count && data_block_count <= Constants.max_data_block_count);
-  assert (
-    data_block_count <= max_drop_count
-    && max_drop_count <= Constants.max_drop_count
-  );
-      {
-        systematic;
-        data_block_count;
-        max_drop_count;
-        dist = Dist.robust_soliton_dist ~k:data_block_count;
-}
+  let make ~systematic ~data_block_count ~max_drop_count : t =
+    assert (
+      0 < data_block_count && data_block_count <= Constants.max_data_block_count);
+    assert (
+      data_block_count <= max_drop_count
+      && max_drop_count <= Constants.max_drop_count);
+    {
+      systematic;
+      data_block_count;
+      max_drop_count;
+      dist = Dist.robust_soliton_dist ~k:data_block_count;
+    }
 end
 
 module Drop_set = Drop_set
@@ -115,9 +111,7 @@ module Encode = struct
     mutable cur_drop_index : int;
   }
 
-  let create_encoder 
-  ~data_blocks 
-~(drop_data_buffer : Cstruct.t array)
+  let create_encoder ~data_blocks ~(drop_data_buffer : Cstruct.t array)
       (param : Param.t) : encoder =
     assert (Array.length data_blocks = Param.data_block_count param);
     assert (Utils.cstruct_array_is_consistent data_blocks);
@@ -126,13 +120,7 @@ module Encode = struct
     assert (Utils.cstruct_array_is_consistent drop_data_buffer);
     Utils.zero_cstruct_array drop_data_buffer;
     let degrees = gen_degrees param in
-              {
-                param;
-                degrees;
-                drop_data_buffer;
-                data_blocks;
-                cur_drop_index = 0;
-  }
+    { param; degrees; drop_data_buffer; data_blocks; cur_drop_index = 0 }
 
   let reset_encoder (encoder : encoder) : unit =
     Utils.zero_cstruct_array encoder.drop_data_buffer;
@@ -154,30 +142,31 @@ module Encode = struct
       let data_indices = get_data_block_indices encoder.param drop in
       if Array.length data_indices = 1 then
         let data_index = data_indices.(0) in
-        Utils.blit_onto ~src:encoder.data_blocks.(data_index) ~onto:(Drop.data drop)
-              else
-                Array.iter
-          (fun i -> Utils.xor_onto ~src:encoder.data_blocks.(i) ~onto:(Drop.data drop))
+        Utils.blit_onto
+          ~src:encoder.data_blocks.(data_index)
+          ~onto:(Drop.data drop)
+      else
+        Array.iter
+          (fun i ->
+            Utils.xor_onto ~src:encoder.data_blocks.(i) ~onto:(Drop.data drop))
           data_indices;
-      encoder.cur_drop_index <- encoder.cur_drop_index + 1;
-          )
+      encoder.cur_drop_index <- encoder.cur_drop_index + 1)
 
   let encode_all (encoder : encoder) : unit =
     let drops_left =
       Param.max_drop_count encoder.param - encoder.cur_drop_index
     in
-    for _=0 to drops_left - 1 do
+    for _ = 0 to drops_left - 1 do
       encode_one encoder
     done
 
   let get_remaining_drops (encoder : encoder) : Drop.t array =
-    Array.init (Param.max_drop_count encoder.param) (fun i -> get_drop encoder i)
+    Array.init (Param.max_drop_count encoder.param) (fun i ->
+        get_drop encoder i)
 end
 
 module Decode = struct
-  type error =
-    [ `Cannot_recover
-    ]
+  type error = [ `Cannot_recover ]
 
   module Graph = struct
     type bucket = Hash_int_set.t
@@ -247,18 +236,17 @@ module Decode = struct
     drops : Cstruct.t option array;
   }
 
-  let create_decoder ~data_block_buffer param :
-      decoder =
+  let create_decoder ~data_block_buffer param : decoder =
     let data_block_count = Param.data_block_count param in
     assert (Array.length data_block_buffer = data_block_count);
     assert (Utils.cstruct_array_is_consistent data_block_buffer);
     Utils.zero_cstruct_array data_block_buffer;
     {
-              param;
-              graph = Graph.create param;
-              data_block_size = Cstruct.length data_block_buffer.(0);
-              data_blocks = data_block_buffer;
-              drops = Array.make (Param.max_drop_count param) None;
+      param;
+      graph = Graph.create param;
+      data_block_size = Cstruct.length data_block_buffer.(0);
+      data_blocks = data_block_buffer;
+      drops = Array.make (Param.max_drop_count param) None;
     }
 
   let reset_decoder (decoder : decoder) : unit =
@@ -351,23 +339,23 @@ module Decode = struct
 
   let decode_one (decoder : decoder) (drop : Drop.t) : (status, error) result =
     assert (Cstruct.length (Drop.data drop) = decoder.data_block_size);
-      let drop_index = Drop.index drop in
-      if data_is_ready decoder then Ok `Success
-      else if max_tries_reached decoder then Error `Cannot_recover
-      else
-        match decoder.drops.(drop_index) with
-        | Some _ -> Ok `Ongoing
-        | None -> (
-            add_drop drop decoder;
-            remove_solved_drop_edges ~drop_index decoder;
-            match reduce decoder with
-            | `Success -> Ok `Success
-            | `Need_more_drops ->
-                if max_tries_reached decoder then Error `Cannot_recover
-                else Ok `Ongoing)
+    let drop_index = Drop.index drop in
+    if data_is_ready decoder then Ok `Success
+    else if max_tries_reached decoder then Error `Cannot_recover
+    else
+      match decoder.drops.(drop_index) with
+      | Some _ -> Ok `Ongoing
+      | None -> (
+          add_drop drop decoder;
+          remove_solved_drop_edges ~drop_index decoder;
+          match reduce decoder with
+          | `Success -> Ok `Success
+          | `Need_more_drops ->
+              if max_tries_reached decoder then Error `Cannot_recover
+              else Ok `Ongoing)
 
-  let decode_all (decoder : decoder) (drops : Drop.t array) (drop_present : bool array) :
-      error option =
+  let decode_all (decoder : decoder) (drops : Drop.t array)
+      (drop_present : bool array) : error option =
     assert (Array.length drops = Array.length drop_present);
     let rec aux decoder drops drop_present cur =
       if cur < Array.length drops then
@@ -378,11 +366,9 @@ module Decode = struct
           | Ok `Ongoing ->
               if max_tries_reached decoder then Some `Cannot_recover
               else aux decoder drops drop_present (succ cur)
-          | Ok `Success-> None
-        else
-          aux decoder drops drop_present (succ cur)
-      else
-        None
+          | Ok `Success -> None
+        else aux decoder drops drop_present (succ cur)
+      else None
     in
     aux decoder drops drop_present 0
 end

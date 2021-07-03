@@ -11,11 +11,7 @@ module Param : sig
 
   val max_drop_count : t -> int
 
-  val make :
-    systematic:bool ->
-    data_block_count:int ->
-    max_drop_count:int ->
-    t
+  val make : systematic:bool -> data_block_count:int -> max_drop_count:int -> t
 end
 
 type drop
@@ -52,16 +48,11 @@ val encode_all : encoder -> unit
 
 val remaining_drops_of_encoder : encoder -> drop array
 
-type decode_error =
-  [ `Cannot_recover
-  ]
+type decode_error = [ `Cannot_recover ]
 
 type decoder
 
-val create_decoder :
-  data_block_buffer:Cstruct.t array ->
-  Param.t ->
-  decoder
+val create_decoder : data_block_buffer:Cstruct.t array -> Param.t -> decoder
 
 val reset_decoder : decoder -> unit
 
