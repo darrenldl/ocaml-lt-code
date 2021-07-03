@@ -1,11 +1,6 @@
 module Param : sig
 type t
 
-type error =
-  [ `Invalid_data_block_count
-  | `Invalid_drop_count
-  ]
-
 val systematic : t -> bool
 
 val data_block_count : t -> int
@@ -18,7 +13,7 @@ val make :
   systematic:bool ->
   data_block_count:int ->
   max_drop_count:int ->
-  (t, error) result
+  t
 end = struct
 type t = {
   systematic : bool;
@@ -26,11 +21,6 @@ type t = {
   max_drop_count : int;
   dist : Dist.t;
 }
-
-type error =
-  [ `Invalid_data_block_count
-  | `Invalid_drop_count
-  ]
 
 let systematic t = t.systematic
 
@@ -40,21 +30,18 @@ let max_drop_count t = t.max_drop_count
 
 let dist t = t.dist
 
-let make ~systematic ~data_block_count ~max_drop_count : (t, error) result =
-  if data_block_count <= 0 || data_block_count > Constants.max_data_block_count
-  then Error `Invalid_data_block_count
-  else if
-    max_drop_count < data_block_count
-    || max_drop_count > Constants.max_drop_count
-  then Error `Invalid_drop_count
-  else
-    Ok
+let make ~systematic ~data_block_count ~max_drop_count : t =
+  assert (0 < data_block_count && data_block_count <= Constants.max_data_block_count);
+  assert (
+    data_block_count <= max_drop_count
+    && max_drop_count <= Constants.max_drop_count
+  );
       {
         systematic;
         data_block_count;
         max_drop_count;
         dist = Dist.robust_soliton_dist ~k:data_block_count;
-      }
+}
 end
 
 module Drop_set = Drop_set
@@ -92,13 +79,6 @@ let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
   arr
 
 module Encode = struct
-  type error =
-    [ `Inconsistent_data_block_size
-    | `Invalid_drop_count
-    | `Invalid_data_block_count
-    | `Invalid_drop_data_buffer
-    ]
-
   let gen_degrees_onto (param : Param.t) onto : unit =
     let data_block_count = Param.data_block_count param in
     let max_drop_count = Param.max_drop_count param in
@@ -138,35 +118,21 @@ module Encode = struct
   let create_encoder 
   ~data_blocks 
 ~(drop_data_buffer : Cstruct.t array)
-      (param : Param.t) : (encoder, error) result =
-    if Array.length data_blocks <> Param.data_block_count param then
-      Error `Invalid_data_block_count
-    else
-      if not (Utils.cstruct_array_is_consistent data_blocks) then
-        Error `Inconsistent_data_block_size
-      else
-        let degrees = gen_degrees param in
-        let drop_data_buffer =
-              if
-                Array.length drop_data_buffer = Param.max_drop_count param
-                && Cstruct.length drop_data_buffer.(0) = Cstruct.length data_blocks.(0)
-                && Utils.cstruct_array_is_consistent drop_data_buffer
-              then (
-                Utils.zero_cstruct_array drop_data_buffer;
-                Ok drop_data_buffer)
-              else Error `Invalid_drop_data_buffer
-        in
-        match drop_data_buffer with
-        | Error e -> Error e
-        | Ok drop_data_buffer ->
-            Ok
+      (param : Param.t) : encoder =
+    assert (Array.length data_blocks = Param.data_block_count param);
+    assert (Utils.cstruct_array_is_consistent data_blocks);
+    assert (Array.length drop_data_buffer = Param.max_drop_count param);
+    assert (Cstruct.length drop_data_buffer.(0) = Cstruct.length data_blocks.(0));
+    assert (Utils.cstruct_array_is_consistent drop_data_buffer);
+    Utils.zero_cstruct_array drop_data_buffer;
+    let degrees = gen_degrees param in
               {
                 param;
                 degrees;
                 drop_data_buffer;
                 data_blocks;
                 cur_drop_index = 0;
-              }
+  }
 
   let reset_encoder (encoder : encoder) : unit =
     Utils.zero_cstruct_array encoder.drop_data_buffer;
@@ -210,12 +176,7 @@ end
 
 module Decode = struct
   type error =
-    [ `Invalid_drop_index
-    | `Invalid_drop_count
-    | `Invalid_data_block_buffer
-    | `Invalid_data_block_size
-    | `Invalid_drop_size
-    | `Cannot_recover
+    [ `Cannot_recover
     ]
 
   module Graph = struct
@@ -287,28 +248,18 @@ module Decode = struct
   }
 
   let create_decoder ~data_block_buffer param :
-      (decoder, error) result =
+      decoder =
     let data_block_count = Param.data_block_count param in
-      let data_blocks =
-            if
-              Array.length data_block_buffer = data_block_count
-              && Utils.cstruct_array_is_consistent data_block_buffer
-            then (
-              Utils.zero_cstruct_array data_block_buffer;
-              Ok data_block_buffer)
-            else Error `Invalid_data_block_buffer
-      in
-      match data_blocks with
-      | Error e -> Error e
-      | Ok data_blocks ->
-          Ok
-            {
+    assert (Array.length data_block_buffer = data_block_count);
+    assert (Utils.cstruct_array_is_consistent data_block_buffer);
+    Utils.zero_cstruct_array data_block_buffer;
+    {
               param;
               graph = Graph.create param;
               data_block_size = Cstruct.length data_block_buffer.(0);
-              data_blocks;
+              data_blocks = data_block_buffer;
               drops = Array.make (Param.max_drop_count param) None;
-            }
+    }
 
   let reset_decoder (decoder : decoder) : unit =
     Graph.reset decoder.graph;
@@ -399,9 +350,7 @@ module Decode = struct
     decoder.graph.drop_fill_count = Param.max_drop_count decoder.param
 
   let decode_one (decoder : decoder) (drop : Drop.t) : (status, error) result =
-    if Cstruct.length (Drop.data drop) <> decoder.data_block_size then
-      Error `Invalid_drop_size
-    else
+    assert (Cstruct.length (Drop.data drop) = decoder.data_block_size);
       let drop_index = Drop.index drop in
       if data_is_ready decoder then Ok `Success
       else if max_tries_reached decoder then Error `Cannot_recover
@@ -446,8 +395,6 @@ type drop = Drop.t
 
 let data_of_drop = Drop.data
 
-type encode_error = Encode.error
-
 type encoder = Encode.encoder
 
 let create_encoder = Encode.create_encoder
@@ -476,9 +423,9 @@ let encode_all = Encode.encode_all
 
 let remaining_drops_of_encoder = Encode.get_remaining_drops
 
-type decode_error = Decode.error
-
 type decoder = Decode.decoder
+
+type decode_error = Decode.error
 
 type decode_status = Decode.status
 

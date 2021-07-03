@@ -5,11 +5,6 @@ val max_drop_count : int
 module Param : sig
   type t
 
-  type error =
-    [ `Invalid_data_block_count
-    | `Invalid_drop_count
-    ]
-
   val systematic : t -> bool
 
   val data_block_count : t -> int
@@ -20,7 +15,7 @@ module Param : sig
     systematic:bool ->
     data_block_count:int ->
     max_drop_count:int ->
-    (t, error) result
+    t
 end
 
 type drop
@@ -29,20 +24,13 @@ val data_of_drop : drop -> Cstruct.t
 
 module Drop_set : Set.S with type elt = drop
 
-type encode_error =
-  [ `Inconsistent_data_block_size
-  | `Invalid_drop_count
-  | `Invalid_data_block_count
-  | `Invalid_drop_data_buffer
-  ]
-
 type encoder
 
 val create_encoder :
   data_blocks:Cstruct.t array ->
   drop_data_buffer:Cstruct.t array ->
   Param.t ->
-  (encoder, encode_error) result
+  encoder
 
 val reset_encoder : encoder -> unit
 
@@ -65,12 +53,7 @@ val encode_all : encoder -> unit
 val remaining_drops_of_encoder : encoder -> drop array
 
 type decode_error =
-  [ `Invalid_drop_index
-  | `Invalid_drop_count
-  | `Invalid_data_block_buffer
-  | `Invalid_data_block_size
-  | `Invalid_drop_size
-  | `Cannot_recover
+  [ `Cannot_recover
   ]
 
 type decoder
@@ -78,7 +61,7 @@ type decoder
 val create_decoder :
   data_block_buffer:Cstruct.t array ->
   Param.t ->
-  (decoder, decode_error) result
+  decoder
 
 val reset_decoder : decoder -> unit
 
