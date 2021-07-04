@@ -41,7 +41,11 @@ val encode_all : encoder -> unit
 
 val remaining_drops_of_encoder : encoder -> Drop.t array
 
-type decode_error = [ `Cannot_recover ]
+  type decode_error =
+    [ `Invalid_drop_index
+    | `Invalid_drop_size
+    | `Cannot_recover
+    ]
 
 type decoder
 

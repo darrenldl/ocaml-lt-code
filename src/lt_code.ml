@@ -172,7 +172,11 @@ module Encode = struct
 end
 
 module Decode = struct
-  type error = [ `Cannot_recover ]
+  type error =
+    [ `Invalid_drop_index
+    | `Invalid_drop_size
+    | `Cannot_recover
+    ]
 
   module Graph = struct
     type bucket = Hash_int_set.t
@@ -354,8 +358,13 @@ module Decode = struct
 
   let decode_one (decoder : decoder) (drop : Drop.t) :
       (status, error) result * int list =
-    assert (Cstruct.length (Drop.data drop) = decoder.data_block_size);
+    if (Cstruct.length (Drop.data drop) <> decoder.data_block_size) then
+      Error `Invalid_drop_size, []
+    else
     let drop_index = Drop.index drop in
+    if drop_index >= Param.max_drop_count decoder.param then
+      Error `Invalid_drop_index, []
+    else
     if data_is_ready decoder then (Ok `Success, [])
     else if max_tries_reached decoder then (Error `Cannot_recover, [])
     else

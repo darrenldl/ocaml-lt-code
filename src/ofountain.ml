@@ -1,3 +1,7 @@
+let max_data_block_count = Constants.max_data_block_count
+
+let max_drop_count = Constants.max_drop_count
+
 module Param : sig
   type t
 
@@ -54,13 +58,15 @@ end = struct
   let drop_count x = x.drop_count
 end
 
-let calc_step_size (param : Param.t) =
-  float_of_int (Param.data_block_count param) *. Param.layer_step_ratio param
+let calc_step_size (param : Param.t) : int =
+  int_of_float @@
+  ceil
+  (float_of_int (Param.data_block_count param) *. Param.layer_step_ratio param)
 
 let calc_layer_count param =
   let drop_count = Param.drop_count param in
   let step_size = calc_step_size param in
-  int_of_float @@ Float.ceil (float_of_int drop_count /. step_size)
+  int_of_float @@ Float.ceil (float_of_int drop_count /. float_of_int step_size)
 
 let calc_data_block_layer_size (param : Param.t) i =
   let data_block_count = Param.data_block_count param in
@@ -69,7 +75,7 @@ let calc_data_block_layer_size (param : Param.t) i =
   let layer_count = calc_layer_count param in
   assert (0 <= i && i < layer_count);
   if i < layer_count - 1 then
-    data_block_count + ((i + 1) * int_of_float step_size)
+    data_block_count + ((i + 1) * step_size)
   else drop_count
 
 let calc_drop_data_buffer_layer_size (param : Param.t) i =
@@ -159,8 +165,10 @@ module Encode = struct
       in
       Ok { param; lt_encoders; data_block_layers; drop_data_buffer_layers })
 
-  let encode (encoder : encoder) : unit =
-    Array.iter Lt_code.encode_all encoder.lt_encoders
+  let encode (encoder : encoder) : Drop.t array =
+    let layer_count = Array.length encoder.lt_encoders in
+    Array.iter Lt_code.encode_all encoder.lt_encoders;
+    Lt_code.remaining_drops_of_encoder encoder.lt_encoders.(layer_count - 1)
 end
 
 module Decode = struct
@@ -173,6 +181,7 @@ module Decode = struct
 
   type error =
     [ `Invalid_drop_size
+    | `Invalid_drop_index
     | `Invalid_data_blocks
     | `Cannot_recover
     ]
@@ -229,7 +238,10 @@ module Decode = struct
       in
       Ok { param; lt_decoders; degree_layers; data_block_layers })
 
-  type status = Lt_code.decode_status
+  type status =
+  [ `Success of Cstruct.t array
+  | `Ongoing
+  ]
 
   let decode_one (decoder : decoder) (drop : Drop.t) : (status, error) result =
     let rec aux decoder cur drops_for_cur =
@@ -242,7 +254,7 @@ module Decode = struct
       else
         let error, _ = Lt_code.decode_all lt_decoder drops_for_cur in
         match error with
-        | None -> Ok `Success
+        | None -> Ok (`Success decoder.data_block_layers.(0))
         | Some e ->
           if Lt_code.drop_fill_count_of_decoder lt_decoder < Lt_code.max_drop_count_of_decoder lt_decoder then
             Ok `Ongoing
@@ -252,3 +264,25 @@ module Decode = struct
     let layer_count = Array.length decoder.lt_decoders in
     aux decoder (layer_count - 1) [drop]
 end
+
+type drop = Drop.t
+
+let data_of_drop = Drop.data
+
+type encode_error = Encode.error
+
+type encoder = Encode.encoder
+
+let create_encoder = Encode.create_encoder
+
+let encode = Encode.encode
+
+type decoder = Decode.decoder
+
+let create_decoder = Decode.create_decoder
+
+type decode_status = Decode.status
+
+type decode_error = Decode.error
+
+let decode_one = Decode.decode_one
