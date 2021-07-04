@@ -65,6 +65,8 @@ type decode_status =
   | `Ongoing
   ]
 
-val decode_one : decoder -> Drop.t -> (decode_status, decode_error) result * int list
+val decode_one :
+  decoder -> Drop.t -> (decode_status, decode_error) result * int list
 
-val decode_all : decoder -> Drop.t array -> bool array -> decode_error option * int list
+val decode_all :
+  decoder -> Drop.t array -> bool array -> decode_error option * int list
