@@ -10,9 +10,12 @@ module Param : sig
   val make : systematic:bool -> data_block_count:int -> max_drop_count:int -> t
 end
 
+val gen_degrees : deterministic:bool -> Param.t -> int array
+
 type encoder
 
 val create_encoder :
+  deterministic_degrees:bool ->
   data_blocks:Cstruct.t array ->
   drop_data_buffer:Cstruct.t array ->
   Param.t ->
@@ -58,7 +61,7 @@ val data_block_size_of_decoder : decoder -> int
 
 val drop_fill_count_of_decoder : decoder -> int
 
-val data_blocks_of_decoder : decoder -> Cstruct.t array option
+val data_block_solved_count_of_decoder : decoder -> int
 
 type decode_status =
   [ `Success
@@ -69,4 +72,4 @@ val decode_one :
   decoder -> Drop.t -> (decode_status, decode_error) result * int list
 
 val decode_all :
-  decoder -> Drop.t array -> bool array -> decode_error option * int list
+  decoder -> Drop.t list -> decode_error option * int list

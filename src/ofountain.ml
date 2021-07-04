@@ -149,9 +149,13 @@ module Encode = struct
               Lt_code.Param.make ~systematic:(Param.systematic param)
                 ~data_block_count ~max_drop_count
             in
-            Lt_code.create_encoder ~data_blocks:data_block_layers.(i)
+            let deterministic_degrees =
+              (i < layer_count - 1)
+            in
+            Lt_code.create_encoder ~deterministic_degrees ~data_blocks:data_block_layers.(i)
               ~drop_data_buffer:drop_data_buffer_layers.(i)
-              param)
+              param
+          )
       in
       Ok { param; lt_encoders; data_block_layers; drop_data_buffer_layers })
 
@@ -163,12 +167,14 @@ module Decode = struct
   type decoder = {
     param : Param.t;
     lt_decoders : Lt_code.decoder array;
+    degree_layers : int array array;
     data_block_layers : Cstruct.t array array;
   }
 
   type error =
     [ `Invalid_drop_size
     | `Invalid_data_blocks
+    | `Cannot_recover
     ]
 
   let create_decoder ~data_blocks param : (decoder, error) result =
@@ -210,5 +216,39 @@ module Decode = struct
             in
             Lt_code.create_decoder ~data_blocks:data_block_layers.(i) param)
       in
-      Ok { param; lt_decoders; data_block_layers })
+      let degree_layers =
+        Array.init (layer_count - 1) (fun i ->
+            let data_block_count = calc_data_block_layer_size param i in
+            let max_drop_count = calc_drop_data_buffer_layer_size param i in
+            let param =
+              Lt_code.Param.make ~systematic:(Param.systematic param)
+                ~data_block_count ~max_drop_count
+            in
+          Lt_code.gen_degrees ~deterministic:true param
+        )
+      in
+      Ok { param; lt_decoders; degree_layers; data_block_layers })
+
+  type status = Lt_code.decode_status
+
+  let decode_one (decoder : decoder) (drop : Drop.t) : (status, error) result =
+    let rec aux decoder cur drops_for_cur =
+      let lt_decoder = decoder.lt_decoders.(cur) in
+      if cur > 0 then
+        let _, newly_solved = Lt_code.decode_all lt_decoder drops_for_cur in
+        let drops_for_next = List.map (fun index ->
+          Drop.make_exn ~index ~degree:decoder.degree_layers.(cur).(index) ~data:decoder.data_block_layers.(cur).(index)) newly_solved in
+        aux decoder (pred cur) drops_for_next
+      else
+        let error, _ = Lt_code.decode_all lt_decoder drops_for_cur in
+        match error with
+        | None -> Ok `Success
+        | Some e ->
+          if Lt_code.drop_fill_count_of_decoder lt_decoder < Lt_code.max_drop_count_of_decoder lt_decoder then
+            Ok `Ongoing
+          else
+            Error (e :> error)
+    in
+    let layer_count = Array.length decoder.lt_decoders in
+    aux decoder (layer_count - 1) [drop]
 end

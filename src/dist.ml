@@ -38,7 +38,7 @@ let robust_soliton_dist ~k : t =
   Array.iteri (fun i v -> weights.(i) <- t i +. v) weights;
   of_weights weights
 
-let choose_onto ?(offset = 0) (d : t) (arr : int array) : unit =
+let choose_onto ?(seed) ?(offset = 0) (d : t) (arr : int array) : unit =
   let aux () =
     let v = Random.float d.total_weight in
     let res =
@@ -54,12 +54,16 @@ let choose_onto ?(offset = 0) (d : t) (arr : int array) : unit =
   in
   let n = Array.length arr in
   assert (offset < n);
-  Random.self_init ();
+  (match seed with
+   | Some seed -> Random.init seed
+   | None ->
+     Random.self_init ()
+  );
   for i = offset to n - 1 do
     arr.(i) <- aux ()
   done
 
-let choose_n (d : t) n : int array =
+let choose_n ?seed (d : t) n : int array =
   let arr = Array.make n 0 in
-  choose_onto d arr;
+  choose_onto ?seed d arr;
   arr

@@ -72,44 +72,52 @@ let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
   get_data_block_indices_onto param drop arr;
   arr
 
-module Encode = struct
-  let gen_degrees_onto (param : Param.t) onto : unit =
+  let gen_degrees_onto ~deterministic (param : Param.t) onto : unit =
     let data_block_count = Param.data_block_count param in
     let max_drop_count = Param.max_drop_count param in
     assert (Array.length onto = max_drop_count);
     let systematic = Param.systematic param in
+    let seed =
+      if deterministic then
+        Some data_block_count
+      else
+        None
+    in
     if systematic then (
       for i = 0 to data_block_count - 1 do
         onto.(i) <- 1
       done;
       let n = max_drop_count - data_block_count in
       if n > 0 then (
-        Dist.choose_onto ~offset:data_block_count (Param.dist param) onto;
+        Dist.choose_onto ?seed ~offset:data_block_count (Param.dist param) onto;
         (* we amplify the coverage of the parity drops *)
         let parity_to_data_ratio = (data_block_count + n - 1) / n in
         let multiplier = parity_to_data_ratio * 2 in
         for i = data_block_count to max_drop_count - 1 do
           onto.(i) <- min data_block_count (onto.(i) * multiplier)
         done))
-    else Dist.choose_onto (Param.dist param) onto;
+    else Dist.choose_onto ?seed (Param.dist param) onto;
     (* fix a random drop to be degree 1 to ensure decoding is at least possible *)
     if not systematic then onto.(Rand.gen_int_global max_drop_count) <- 1
 
-  let gen_degrees (param : Param.t) : int array =
+  let gen_degrees ~deterministic (param : Param.t) : int array =
     let max_drop_count = Param.max_drop_count param in
     let arr = Array.make max_drop_count 0 in
-    gen_degrees_onto param arr;
+    gen_degrees_onto ~deterministic param arr;
     arr
 
+
+module Encode = struct
   type encoder = {
     param : Param.t;
-    mutable degrees : int array;
+    deterministic_degrees : bool;
+    degrees : int array;
     data_blocks : Cstruct.t array;
     drop_data_buffer : Cstruct.t array;
     mutable cur_drop_index : int;
   }
 
-  let create_encoder ~data_blocks ~(drop_data_buffer : Cstruct.t array)
+  let create_encoder ~deterministic_degrees ~data_blocks ~(drop_data_buffer : Cstruct.t array)
       (param : Param.t) : encoder =
     assert (Array.length data_blocks = Param.data_block_count param);
     assert (Utils.cstruct_array_is_consistent data_blocks);
@@ -117,13 +125,13 @@ module Encode = struct
     assert (Cstruct.length drop_data_buffer.(0) = Cstruct.length data_blocks.(0));
     assert (Utils.cstruct_array_is_consistent drop_data_buffer);
     Utils.zero_cstruct_array drop_data_buffer;
-    let degrees = gen_degrees param in
-    { param; degrees; drop_data_buffer; data_blocks; cur_drop_index = 0 }
+    let degrees = gen_degrees ~deterministic:deterministic_degrees param in
+    { param; deterministic_degrees; degrees; drop_data_buffer; data_blocks; cur_drop_index = 0 }
 
   let reset_encoder (encoder : encoder) : unit =
     Utils.zero_cstruct_array encoder.drop_data_buffer;
     encoder.cur_drop_index <- 0;
-    gen_degrees_onto encoder.param encoder.degrees
+    gen_degrees_onto ~deterministic:encoder.deterministic_degrees encoder.param encoder.degrees
 
   let get_drop (encoder : encoder) index : Drop.t =
     let drop_count = Param.max_drop_count encoder.param in
@@ -364,25 +372,22 @@ module Decode = struct
                 (Error `Cannot_recover, newly_solved)
               else (Ok `Ongoing, newly_solved))
 
-  let decode_all (decoder : decoder) (drops : Drop.t array)
-      (drop_present : bool array) : error option * int list =
-    assert (Array.length drops = Array.length drop_present);
-    let rec aux decoder drops drop_present cur acc =
-      if cur < Array.length drops then
-        if drop_present.(cur) then
-          let x = drops.(cur) in
-          let status, newly_solved = decode_one decoder x in
-          match status with
-          | Error e -> (Some e, [])
-          | Ok `Ongoing ->
-              if max_tries_reached decoder then (Some `Cannot_recover, [])
-              else
-                aux decoder drops drop_present (succ cur) (newly_solved :: acc)
-          | Ok `Success -> (None, List.flatten (newly_solved :: acc))
-        else aux decoder drops drop_present (succ cur) acc
-      else (None, [])
+  let decode_all (decoder : decoder) (drops : Drop.t list)
+      : error option * int list =
+    let rec aux decoder drops acc =
+      match drops with
+      | [] -> (None, [])
+      | x :: xs ->
+        let status, newly_solved = decode_one decoder x in
+        match status with
+        | Error e -> (Some e, [])
+        | Ok `Ongoing ->
+            if max_tries_reached decoder then (Some `Cannot_recover, [])
+            else
+              aux decoder xs (newly_solved :: acc)
+        | Ok `Success -> (None, List.flatten (newly_solved :: acc))
     in
-    aux decoder drops drop_present 0 []
+    aux decoder drops []
 end
 
 type encoder = Encode.encoder
@@ -440,8 +445,8 @@ let data_block_size_of_decoder (decoder : Decode.decoder) =
 let drop_fill_count_of_decoder (decoder : Decode.decoder) =
   decoder.graph.drop_fill_count
 
-let data_blocks_of_decoder (decoder : Decode.decoder) : Cstruct.t array option =
-  if Decode.data_is_ready decoder then Some decoder.data_blocks else None
+let data_block_solved_count_of_decoder (decoder : Decode.decoder) =
+  decoder.graph.data_block_solved_count
 
 let decode_one = Decode.decode_one
 
