@@ -72,7 +72,7 @@ let calc_data_block_layer_size (param : Param.t) i =
     data_block_count + ((i + 1) * int_of_float step_size)
   else drop_count
 
-let calc_drop_data_block_layer_size (param : Param.t) i =
+let calc_drop_data_buffer_layer_size (param : Param.t) i =
   calc_data_block_layer_size param (i + 1)
 
 module Encode = struct
@@ -97,20 +97,17 @@ module Encode = struct
     else if not (Utils.cstruct_array_is_consistent data_blocks) then
       Error `Inconsistent_data_block_size
     else
-      let drop_data_buffer =
         if
+          not (
           Array.length drop_data_buffer = Param.drop_count param
           && Cstruct.length drop_data_buffer.(0)
              = Cstruct.length data_blocks.(0)
           && Utils.cstruct_array_is_consistent drop_data_buffer
-        then (
+    )
+        then
+        Error `Invalid_drop_data_buffer
+        else (
           Utils.zero_cstruct_array drop_data_buffer;
-          Ok drop_data_buffer)
-        else Error `Invalid_drop_data_buffer
-      in
-      match drop_data_buffer with
-      | Error e -> Error e
-      | Ok drop_data_buffer ->
           let layer_count = calc_layer_count param in
           let data_block_size = Cstruct.length data_blocks.(0) in
           let data_block_layers, drop_data_buffer_layers =
@@ -144,22 +141,92 @@ module Encode = struct
               in
               let drop_data_buffer_layers =
                 Array.init layer_count (fun i ->
-                    let layer_size = calc_drop_data_block_layer_size param i in
+                    let layer_size = calc_drop_data_buffer_layer_size param i in
                     Array.init layer_size (fun _ ->
                         Cstruct.create data_block_size))
               in
               (data_block_layers, drop_data_buffer_layers)
           in
           let lt_encoders =
-            let param =
-              Lt_code.Param.make ~systematic:(Param.systematic param)
-                ~data_block_count:(Param.data_block_count param)
-                ~max_drop_count:(Param.drop_count param)
-            in
             Array.init layer_count (fun i ->
+                let data_block_count = calc_data_block_layer_size param i in
+                let max_drop_count = calc_drop_data_buffer_layer_size param i in
+                let param =
+                  Lt_code.Param.make ~systematic:(Param.systematic param)
+                    ~data_block_count
+                    ~max_drop_count
+                in
                 Lt_code.create_encoder ~data_blocks:data_block_layers.(i)
                   ~drop_data_buffer:drop_data_buffer_layers.(i)
                   param)
           in
           Ok { param; lt_encoders; data_block_layers; drop_data_buffer_layers }
+        )
+
+  let encode (encoder : encoder) : unit =
+    Array.iter Lt_code.encode_all encoder.lt_encoders
+end
+
+module Decode = struct
+  type decoder = {
+    param : Param.t;
+    lt_decoders : Lt_code.decoder array;
+    data_block_layers : Cstruct.t array array;
+  }
+
+  type error =
+    [ `Invalid_drop_size
+    | `Invalid_data_blocks
+    ]
+
+  let create_decoder ~data_blocks param : (decoder, error) result =
+        if
+          not (
+          Array.length data_blocks = Param.drop_count param
+          && Utils.cstruct_array_is_consistent data_blocks
+    )
+        then
+          Error `Invalid_data_blocks
+        else (
+          Utils.zero_cstruct_array data_blocks;
+          let layer_count = calc_layer_count param in
+          let data_block_size = Cstruct.length data_blocks.(0) in
+          let data_block_layers =
+            if Param.systematic param then
+              let prev_layer = ref data_blocks in
+              Array.init layer_count (fun i ->
+                  if i = 0 then data_blocks
+                  else
+                    let layer_size = calc_data_block_layer_size param i in
+                    let res =
+                      Array.init layer_size (fun i ->
+                          if i < Array.length !prev_layer then !prev_layer.(i)
+                          else Cstruct.create data_block_size)
+                    in
+                    prev_layer := res;
+                    res)
+            else
+              Array.init layer_count (fun i ->
+                  let layer_size = calc_data_block_layer_size param i in
+                  Array.init layer_size (fun _ ->
+                      Cstruct.create data_block_size))
+          in
+          let lt_decoders =
+            Array.init layer_count (fun i ->
+                let data_block_count = calc_data_block_layer_size param i in
+                let max_drop_count = calc_drop_data_buffer_layer_size param i in
+                let param =
+                  Lt_code.Param.make ~systematic:(Param.systematic param)
+                    ~data_block_count
+                    ~max_drop_count
+                in
+              Lt_code.create_decoder ~data_blocks:(data_block_layers.(i)) param
+              )
+          in
+          Ok {
+  param;
+  lt_decoders;
+  data_block_layers;
+  }
+          )
 end

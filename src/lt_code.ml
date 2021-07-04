@@ -40,8 +40,6 @@ end = struct
     }
 end
 
-module Drop_set = Drop_set
-
 let get_data_block_indices_onto (param : Param.t) (drop : Drop.t)
     (onto : int array) : unit =
   let systematic = Param.systematic param in
@@ -236,16 +234,16 @@ module Decode = struct
     drops : Cstruct.t option array;
   }
 
-  let create_decoder ~data_block_buffer param : decoder =
+  let create_decoder ~data_blocks param : decoder =
     let data_block_count = Param.data_block_count param in
-    assert (Array.length data_block_buffer = data_block_count);
-    assert (Utils.cstruct_array_is_consistent data_block_buffer);
-    Utils.zero_cstruct_array data_block_buffer;
+    assert (Array.length data_blocks = data_block_count);
+    assert (Utils.cstruct_array_is_consistent data_blocks);
+    Utils.zero_cstruct_array data_blocks;
     {
       param;
       graph = Graph.create param;
-      data_block_size = Cstruct.length data_block_buffer.(0);
-      data_blocks = data_block_buffer;
+      data_block_size = Cstruct.length data_blocks.(0);
+      data_blocks = data_blocks;
       drops = Array.make (Param.max_drop_count param) None;
     }
 
@@ -287,15 +285,14 @@ module Decode = struct
     | `Need_more_drops
     ]
 
-  let reduce_one_step (decoder : decoder) : reduction_one_step_status =
-    let degree_1_found = ref false in
-    Array.iteri
-      (fun drop_index drop ->
+  let reduce_one_step (decoder : decoder) : reduction_one_step_status * int list =
+    let newly_solved, degree_1_found =
+    CCArray.foldi
+      (fun (acc, degree_1_found) drop_index drop ->
         match drop with
-        | None -> ()
+        | None -> acc, degree_1_found
         | Some drop_data ->
             if Graph.degree_of_drop ~drop_index decoder.graph = 1 then (
-              degree_1_found := true;
               let data_index =
                 Hash_int_set.choose decoder.graph.drop_edges.(drop_index)
               in
@@ -304,24 +301,38 @@ module Decode = struct
                   ~onto:decoder.data_blocks.(data_index);
                 Graph.mark_data_as_solved ~data_index decoder.graph;
                 Graph.remove_edge ~data_index ~drop_index decoder.graph;
-                propagate_data_xor ~data_index decoder)))
-      decoder.drops;
-    if !degree_1_found then `Ongoing
+                propagate_data_xor ~data_index decoder;
+                (data_index :: acc, true)
+                  )
+              else
+                acc, degree_1_found
+              )
+            else
+              acc, degree_1_found
+            )
+      ([], false)
+      decoder.drops
+    in
+    let status =
+    if degree_1_found then `Ongoing
     else if
       decoder.graph.data_block_solved_count
       = Param.data_block_count decoder.param
     then `Success
     else `Need_more_drops
+    in
+    status, newly_solved
 
   type reduction_status =
     [ `Success
     | `Need_more_drops
     ]
 
-  let reduce (decoder : decoder) : reduction_status =
+  let reduce (decoder : decoder) : reduction_status * int list =
     let rec aux () =
-      match reduce_one_step decoder with
-      | (`Success | `Need_more_drops) as s -> (s :> reduction_status)
+      let status, newly_solved = reduce_one_step decoder in
+      match status with
+      | (`Success | `Need_more_drops) as s -> (s :> reduction_status), newly_solved
       | `Ongoing -> aux ()
     in
     aux ()
@@ -337,49 +348,43 @@ module Decode = struct
   let max_tries_reached (decoder : decoder) : bool =
     decoder.graph.drop_fill_count = Param.max_drop_count decoder.param
 
-  let decode_one (decoder : decoder) (drop : Drop.t) : (status, error) result =
+  let decode_one (decoder : decoder) (drop : Drop.t) : (status, error) result * int list =
     assert (Cstruct.length (Drop.data drop) = decoder.data_block_size);
     let drop_index = Drop.index drop in
-    if data_is_ready decoder then Ok `Success
-    else if max_tries_reached decoder then Error `Cannot_recover
+    if data_is_ready decoder then (Ok `Success, [])
+    else if max_tries_reached decoder then (Error `Cannot_recover, [])
     else
       match decoder.drops.(drop_index) with
-      | Some _ -> Ok `Ongoing
+      | Some _ -> (Ok `Ongoing, [])
       | None -> (
           add_drop drop decoder;
           remove_solved_drop_edges ~drop_index decoder;
-          match reduce decoder with
-          | `Success -> Ok `Success
+          let status, newly_solved = reduce decoder in
+          match status with
+          | `Success -> (Ok `Success, newly_solved)
           | `Need_more_drops ->
-              if max_tries_reached decoder then Error `Cannot_recover
-              else Ok `Ongoing)
+              if max_tries_reached decoder then (Error `Cannot_recover, newly_solved)
+              else (Ok `Ongoing, newly_solved))
 
   let decode_all (decoder : decoder) (drops : Drop.t array)
-      (drop_present : bool array) : error option =
+      (drop_present : bool array) : error option * int list =
     assert (Array.length drops = Array.length drop_present);
-    let rec aux decoder drops drop_present cur =
+    let rec aux decoder drops drop_present cur acc =
       if cur < Array.length drops then
         if drop_present.(cur) then
           let x = drops.(cur) in
-          match decode_one decoder x with
-          | Error e -> Some e
+          let status, newly_solved = decode_one decoder x in
+          match status with
+          | Error e -> Some e, []
           | Ok `Ongoing ->
-              if max_tries_reached decoder then Some `Cannot_recover
-              else aux decoder drops drop_present (succ cur)
-          | Ok `Success -> None
-        else aux decoder drops drop_present (succ cur)
-      else None
+              if max_tries_reached decoder then Some `Cannot_recover, []
+              else aux decoder drops drop_present (succ cur) (newly_solved :: acc)
+          | Ok `Success -> (None, List.flatten (newly_solved :: acc))
+        else aux decoder drops drop_present (succ cur) acc
+      else None, []
     in
-    aux decoder drops drop_present 0
+    aux decoder drops drop_present 0 []
 end
-
-let max_drop_count = Constants.max_drop_count
-
-let max_data_block_count = Constants.max_data_block_count
-
-type drop = Drop.t
-
-let data_of_drop = Drop.data
 
 type encoder = Encode.encoder
 

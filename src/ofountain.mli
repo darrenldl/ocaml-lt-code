@@ -8,19 +8,22 @@ module Param : sig
   type error =
     [ `Invalid_data_block_count
     | `Invalid_drop_count
+    | `Invalid_layer_step_ratio
     ]
-
-  val systematic : t -> bool
-
-  val data_block_count : t -> int
-
-  val max_drop_count : t -> int
 
   val make :
     systematic:bool ->
     data_block_count:int ->
     max_drop_count:int ->
     (t, error) result
+
+  val systematic : t -> bool
+
+  val data_block_count : t -> int
+
+  val drop_count : t -> int
+
+  val layer_step_ratio : t -> float
 end
 
 (** {1 Basic types} *)
@@ -28,8 +31,6 @@ end
 type drop
 
 val data_of_drop : drop -> Cstruct.t
-
-module Drop_set : Set.S with type elt = drop
 
 (** {1 Encoding} *)
 

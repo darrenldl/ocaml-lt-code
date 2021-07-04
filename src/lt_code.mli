@@ -1,7 +1,3 @@
-val max_data_block_count : int
-
-val max_drop_count : int
-
 module Param : sig
   type t
 
@@ -13,12 +9,6 @@ module Param : sig
 
   val make : systematic:bool -> data_block_count:int -> max_drop_count:int -> t
 end
-
-type drop
-
-val data_of_drop : drop -> Cstruct.t
-
-module Drop_set : Set.S with type elt = drop
 
 type encoder
 
@@ -46,13 +36,13 @@ val encode_one : encoder -> unit
 
 val encode_all : encoder -> unit
 
-val remaining_drops_of_encoder : encoder -> drop array
+val remaining_drops_of_encoder : encoder -> Drop.t array
 
 type decode_error = [ `Cannot_recover ]
 
 type decoder
 
-val create_decoder : data_block_buffer:Cstruct.t array -> Param.t -> decoder
+val create_decoder : data_blocks:Cstruct.t array -> Param.t -> decoder
 
 val reset_decoder : decoder -> unit
 
@@ -75,6 +65,6 @@ type decode_status =
   | `Ongoing
   ]
 
-val decode_one : decoder -> drop -> (decode_status, decode_error) result
+val decode_one : decoder -> Drop.t -> (decode_status, decode_error) result * int list
 
-val decode_all : decoder -> drop array -> bool array -> decode_error option
+val decode_all : decoder -> Drop.t array -> bool array -> decode_error option * int list
