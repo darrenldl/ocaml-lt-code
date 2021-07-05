@@ -63,8 +63,7 @@ module Encode = struct
       if n > 0 then (
         Dist.choose_onto ~offset:data_block_count (Param.dist param) onto;
         (* we amplify the coverage of the parity drops *)
-        let parity_to_data_ratio = (data_block_count + n - 1) / n in
-        let multiplier = parity_to_data_ratio * 2 in
+        let multiplier = (10 * data_block_count + n - 1) / n in
         for i = data_block_count to max_drop_count - 1 do
           onto.(i) <- min data_block_count (onto.(i) * multiplier)
         done))
