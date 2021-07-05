@@ -45,7 +45,7 @@ end = struct
     then Error `Invalid_data_block_count
     else if drop_count <= 0 || data_block_count > Constants.max_data_block_count
     then Error `Invalid_drop_count
-    else if layer_step_ratio <= 0.1 || layer_step_ratio > 1.0 then
+    else if layer_step_ratio < 0.1 || layer_step_ratio > 1.0 then
       Error `Invalid_layer_step_ratio
     else Ok { systematic; data_block_count; drop_count; layer_step_ratio }
 
@@ -68,6 +68,8 @@ let calc_layer_count param =
   let drop_count = Param.drop_count param in
   let step_size = calc_step_size param in
   int_of_float @@ Float.ceil (float_of_int (drop_count - data_block_count) /. float_of_int step_size)
+
+let calc_layer_count _ = 2
 
 let calc_data_block_layer_size (param : Param.t) i =
   let data_block_count = Param.data_block_count param in
@@ -118,28 +120,28 @@ module Encode = struct
       Printf.printf "layer_count: %d\n" layer_count;
       let data_block_size = Cstruct.length data_blocks.(0) in
       let data_block_layers, drop_data_buffer_layers =
-        if Param.systematic param then
-          let data_block_layers =
-            let prev_layer = ref data_blocks in
-            Array.init layer_count (fun i ->
-                if i = 0 then data_blocks
-                else
-                  let layer_size = calc_data_block_layer_size param i in
-                  let res =
-                    Array.init layer_size (fun i ->
-                        if i < Array.length !prev_layer then !prev_layer.(i)
-                        else Cstruct.create data_block_size)
-                  in
-                  prev_layer := res;
-                  res)
-          in
-          let drop_data_buffer_layers =
-            Array.init layer_count (fun i ->
-                if i = layer_count - 1 then drop_data_buffer
-                else data_block_layers.(i + 1))
-          in
-          (data_block_layers, drop_data_buffer_layers)
-        else
+        (* if Param.systematic param then *)
+          (* let data_block_layers = *)
+            (* let prev_layer = ref data_blocks in *)
+            (* Array.init layer_count (fun i -> *)
+                (* if i = 0 then data_blocks *)
+                (* else *)
+                  (* let layer_size = calc_data_block_layer_size param i in *)
+                  (* let res = *)
+                    (* Array.init layer_size (fun i -> *)
+                        (* if i < Array.length !prev_layer then !prev_layer.(i) *)
+                        (* else Cstruct.create data_block_size) *)
+                  (* in *)
+                  (* prev_layer := res; *)
+                  (* res) *)
+          (* in *)
+          (* let drop_data_buffer_layers = *)
+            (* Array.init layer_count (fun i -> *)
+                (* if i = layer_count - 1 then drop_data_buffer *)
+                (* else data_block_layers.(i + 1)) *)
+          (* in *)
+          (* (data_block_layers, drop_data_buffer_layers) *)
+        (* else *)
           let data_block_layers =
             Array.init layer_count (fun i ->
               if i = 0 then
@@ -148,10 +150,15 @@ module Encode = struct
                 let layer_size = calc_data_block_layer_size param i in
                 Array.init layer_size (fun _ -> Cstruct.create data_block_size))
           in
+          (* let drop_data_buffer_layers = *)
+            (* Array.init layer_count (fun i -> *)
+                (* let layer_size = calc_drop_data_buffer_layer_size param i in *)
+                (* Array.init layer_size (fun _ -> Cstruct.create data_block_size)) *)
+          (* in *)
           let drop_data_buffer_layers =
             Array.init layer_count (fun i ->
-                let layer_size = calc_drop_data_buffer_layer_size param i in
-                Array.init layer_size (fun _ -> Cstruct.create data_block_size))
+                if i = layer_count - 1 then drop_data_buffer
+                else data_block_layers.(i + 1))
           in
           (data_block_layers, drop_data_buffer_layers)
       in
@@ -195,6 +202,7 @@ module Decode = struct
     lt_decoders : Lt_code.decoder array;
     degree_layers : int array array;
     data_block_layers : Cstruct.t array array;
+    drop_data_buffer_layers : Cstruct.t array array;
   }
 
   type error =
@@ -215,24 +223,29 @@ module Decode = struct
       let layer_count = calc_layer_count param in
       let data_block_size = Cstruct.length data_blocks.(0) in
       let data_block_layers =
-        if Param.systematic param then
-          let prev_layer = ref data_blocks in
-          Array.init layer_count (fun i ->
-              if i = 0 then data_blocks
-              else
-                let layer_size = calc_data_block_layer_size param i in
-                let res =
-                  Array.init layer_size (fun i ->
-                      if i < Array.length !prev_layer then !prev_layer.(i)
-                      else Cstruct.create data_block_size)
-                in
-                prev_layer := res;
-                res)
-        else
+        (* if Param.systematic param then *)
+          (* let prev_layer = ref data_blocks in *)
+          (* Array.init layer_count (fun i -> *)
+              (* if i = 0 then data_blocks *)
+              (* else *)
+                (* let layer_size = calc_data_block_layer_size param i in *)
+                (* let res = *)
+                  (* Array.init layer_size (fun i -> *)
+                      (* if i < Array.length !prev_layer then !prev_layer.(i) *)
+                      (* else Cstruct.create data_block_size) *)
+                (* in *)
+                (* prev_layer := res; *)
+                (* res) *)
+        (* else *)
           Array.init layer_count (fun i ->
               if i = 0 then data_blocks
               else
               let layer_size = calc_data_block_layer_size param i in
+              Array.init layer_size (fun _ -> Cstruct.create data_block_size))
+      in
+      let drop_data_buffer_layers =
+          Array.init (layer_count - 1) (fun i ->
+              let layer_size = calc_drop_data_buffer_layer_size param i in
               Array.init layer_size (fun _ -> Cstruct.create data_block_size))
       in
       let lt_decoders =
@@ -257,7 +270,7 @@ module Decode = struct
           Lt_code.gen_degrees ~deterministic:true param
         )
       in
-      Ok { param; lt_decoders; degree_layers; data_block_layers })
+      Ok { param; lt_decoders; degree_layers; data_block_layers; drop_data_buffer_layers })
 
   let reset_decoder (decoder : decoder) : unit =
     Array.iter Lt_code.reset_decoder decoder.lt_decoders
@@ -277,7 +290,13 @@ module Decode = struct
         Printf.printf "newly_solved_count: %d\n" (List.length newly_solved);
         (* List.iteri (fun i x -> Printf.printf "newly_solved #%d: %d\n" i x) newly_solved; *)
         let drops_for_next = List.map (fun index ->
-          Drop.make_exn ~index ~degree:decoder.degree_layers.(cur - 1).(index) ~data:decoder.data_block_layers.(cur).(index)) newly_solved in
+          let drop_data =
+            decoder.drop_data_buffer_layers.(cur - 1).(index)
+          in
+          Utils.blit_onto
+            ~src:decoder.data_block_layers.(cur).(index)
+            ~onto:drop_data;
+          Drop.make_exn ~index ~degree:decoder.degree_layers.(cur - 1).(index) ~data:drop_data) newly_solved in
         aux decoder (pred cur) drops_for_next
       else
         let r, _ = Lt_code.decode_all lt_decoder drops_for_cur in

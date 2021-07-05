@@ -61,7 +61,7 @@ let make_setup ~systematic ~encode_all_upfront ~data_block_count ~max_redundancy
   in
   let param =
     Result.get_ok
-    @@ Ofountain.Param.make ~systematic ~data_block_count ~drop_count ~layer_step_ratio:0.25
+    @@ Ofountain.Param.make ~systematic ~data_block_count ~drop_count ~layer_step_ratio:0.10
   in
   assert (0.0 <= data_loss_rate);
   let drop_data_buffer =

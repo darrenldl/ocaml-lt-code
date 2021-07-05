@@ -329,7 +329,7 @@ module Decode = struct
       then `Success
       else `Need_more_drops
     in
-    Printf.printf "lt_code newly_solved_count: %d\n" (List.length newly_solved);
+    (* Printf.printf "lt_code newly_solved_count: %d\n" (List.length newly_solved); *)
     (* List.iteri (fun i x -> Printf.printf "newly_solved #%d: %d\n" i x) newly_solved; *)
     (status, newly_solved)
 
