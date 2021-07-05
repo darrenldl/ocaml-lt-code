@@ -31,7 +31,8 @@ end = struct
       0 < data_block_count && data_block_count <= Constants.max_data_block_count);
     assert (
       data_block_count <= max_drop_count
-      && max_drop_count <= Constants.max_drop_count);
+      && max_drop_count <= Constants.max_drop_count
+    );
     {
       systematic;
       data_block_count;
@@ -97,8 +98,8 @@ let get_data_block_indices (param : Param.t) (drop : Drop.t) : int array =
           onto.(i) <- min data_block_count (onto.(i) * multiplier)
         done))
     else Dist.choose_onto ?seed (Param.dist param) onto;
-    (* fix a random drop to be degree 1 to ensure decoding is at least possible *)
-    if not systematic then onto.(Rand.gen_int_global max_drop_count) <- 1
+    (* fix first drop to be degree 1 to ensure decoding is at least possible *)
+    onto.(0) <- 1
 
   let gen_degrees ~deterministic (param : Param.t) : int array =
     let max_drop_count = Param.max_drop_count param in
@@ -328,6 +329,8 @@ module Decode = struct
       then `Success
       else `Need_more_drops
     in
+    Printf.printf "lt_code newly_solved_count: %d\n" (List.length newly_solved);
+    (* List.iteri (fun i x -> Printf.printf "newly_solved #%d: %d\n" i x) newly_solved; *)
     (status, newly_solved)
 
   type reduction_status =
@@ -336,14 +339,15 @@ module Decode = struct
     ]
 
   let reduce (decoder : decoder) : reduction_status * int list =
-    let rec aux () =
+    let rec aux acc =
       let status, newly_solved = reduce_one_step decoder in
+      let acc = newly_solved :: acc in
       match status with
       | (`Success | `Need_more_drops) as s ->
-          ((s :> reduction_status), newly_solved)
-      | `Ongoing -> aux ()
+          ((s :> reduction_status), List.flatten acc)
+      | `Ongoing -> aux acc
     in
-    aux ()
+    aux []
 
   type status =
     [ `Success
@@ -382,19 +386,18 @@ module Decode = struct
               else (Ok `Ongoing, newly_solved))
 
   let decode_all (decoder : decoder) (drops : Drop.t list)
-      : error option * int list =
+      : (status, error) result * int list =
     let rec aux decoder drops acc =
       match drops with
-      | [] -> (None, [])
+      | [] -> (Ok `Ongoing, List.flatten acc)
       | x :: xs ->
         let status, newly_solved = decode_one decoder x in
+        let acc = newly_solved :: acc in
         match status with
-        | Error e -> (Some e, [])
+        | Error e -> (Error e, List.flatten acc)
         | Ok `Ongoing ->
-            if max_tries_reached decoder then (Some `Cannot_recover, [])
-            else
-              aux decoder xs (newly_solved :: acc)
-        | Ok `Success -> (None, List.flatten (newly_solved :: acc))
+          aux decoder xs acc
+        | Ok `Success -> (Ok `Success, List.flatten acc)
     in
     aux decoder drops []
 end

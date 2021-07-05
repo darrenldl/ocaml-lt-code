@@ -76,4 +76,4 @@ val decode_one :
   decoder -> Drop.t -> (decode_status, decode_error) result * int list
 
 val decode_all :
-  decoder -> Drop.t list -> decode_error option * int list
+  decoder -> Drop.t list -> (decode_status, decode_error) result * int list
