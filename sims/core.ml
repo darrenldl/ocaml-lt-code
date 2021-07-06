@@ -74,8 +74,7 @@ let make_setup ~systematic ~encode_all_upfront ~data_block_count ~max_redundancy
   in
   let encoder_setup_time, encoder =
     time_function (fun () ->
-        Result.get_ok
-        @@ Olt.create_encoder ~drop_data_buffer param data_blocks)
+        Result.get_ok @@ Olt.create_encoder ~drop_data_buffer param data_blocks)
   in
   let data_block_buffer =
     Array.init (Olt.Param.data_block_count param) (fun _ ->
@@ -273,8 +272,7 @@ let print_stats (setup : setup) (stats : combined_stats) =
     *. stats.average_decoding_time
     /. stats.average_drops_used);
   let data_byte_count_per_round =
-    float_of_int
-      (setup.data_block_size * Olt.Param.data_block_count setup.param)
+    float_of_int (setup.data_block_size * Olt.Param.data_block_count setup.param)
   in
   Printf.printf "    average encoding data Mbytes/s:  %10.3f\n"
     (data_byte_count_per_round

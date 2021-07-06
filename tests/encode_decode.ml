@@ -14,8 +14,7 @@ module Qc = struct
         | Error _ -> false
         | Ok (ctx, drops) -> (
             match
-              Olt.decode ctx
-                (Olt.Drop_set.of_seq @@ Array.to_seq drops)
+              Olt.decode ctx (Olt.Drop_set.of_seq @@ Array.to_seq drops)
             with
             | Error _ -> false
             | Ok data_blocks' ->
