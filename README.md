@@ -1,4 +1,4 @@
-# Ofountain
+# Olt
 
 OCaml implementation of Luby transform code
 
