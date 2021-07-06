@@ -10,11 +10,11 @@ module Qc = struct
         QCheck.assume (Array.for_all (fun x -> String.length x > 0) data_blocks);
         let data_blocks = Array.map Cstruct.of_string data_blocks in
         let max_drop_count = Array.length data_blocks + drop_count_offset in
-        match Olt.encode ~systematic:true ~max_drop_count data_blocks with
+        match Lt_code.encode ~systematic:true ~max_drop_count data_blocks with
         | Error _ -> false
         | Ok (ctx, drops) -> (
             match
-              Olt.decode ctx (Olt.Drop_set.of_seq @@ Array.to_seq drops)
+              Lt_code.decode ctx (Lt_code.Drop_set.of_seq @@ Array.to_seq drops)
             with
             | Error _ -> false
             | Ok data_blocks' ->
