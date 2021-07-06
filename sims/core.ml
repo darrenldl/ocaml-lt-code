@@ -235,7 +235,7 @@ let print_setup (setup : setup) =
   let max_drop_count = Ofountain.max_drop_count_of_encoder setup.encoder in
   let max_redundancy = calc_max_redundancy setup in
   let ideal_coverable_data_loss_rate =
-    max_redundancy /. (1.0 +. max_redundancy)
+    max_redundancy /. (100.0 +. max_redundancy)
   in
   Printf.printf "  setup:\n";
   Printf.printf "    systematic:                       %b\n"
@@ -250,7 +250,7 @@ let print_setup (setup : setup) =
   Printf.printf "    data loss rate:                   %9.3f%%\n"
     (100.0 *. setup.data_loss_rate);
   Printf.printf "    ideal recoverable data loss rate: %9.3f%%\n"
-    ideal_coverable_data_loss_rate;
+    (100.0 *. ideal_coverable_data_loss_rate);
   Printf.printf "    rounds:                           %5d\n" setup.rounds
 
 let print_stats (setup : setup) (stats : combined_stats) =
