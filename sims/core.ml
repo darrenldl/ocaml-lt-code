@@ -1,12 +1,12 @@
 type setup = {
-  param : Ofountain.Param.t;
+  param : Olt.Param.t;
   data_block_size : int;
   data_loss_rate : float;
   rounds : int;
   encode_all_upfront : bool;
-  encoder : Ofountain.encoder;
+  encoder : Olt.encoder;
   encoder_setup_time : float;
-  decoder : Ofountain.decoder;
+  decoder : Olt.decoder;
   decoder_setup_time : float;
 }
 
@@ -61,30 +61,30 @@ let make_setup ~systematic ~encode_all_upfront ~data_block_count ~max_redundancy
   in
   let param =
     Result.get_ok
-    @@ Ofountain.Param.make ~systematic ~data_block_count ~max_drop_count
+    @@ Olt.Param.make ~systematic ~data_block_count ~max_drop_count
   in
   assert (0.0 <= data_loss_rate);
   let drop_data_buffer =
-    Array.init (Ofountain.Param.max_drop_count param) (fun _ ->
+    Array.init (Olt.Param.max_drop_count param) (fun _ ->
         Cstruct.create data_block_size)
   in
   let data_blocks =
-    Array.init (Ofountain.Param.data_block_count param) (fun _ ->
+    Array.init (Olt.Param.data_block_count param) (fun _ ->
         Cstruct.create data_block_size)
   in
   let encoder_setup_time, encoder =
     time_function (fun () ->
         Result.get_ok
-        @@ Ofountain.create_encoder ~drop_data_buffer param data_blocks)
+        @@ Olt.create_encoder ~drop_data_buffer param data_blocks)
   in
   let data_block_buffer =
-    Array.init (Ofountain.Param.data_block_count param) (fun _ ->
+    Array.init (Olt.Param.data_block_count param) (fun _ ->
         Cstruct.create data_block_size)
   in
   let decoder_setup_time, decoder =
     time_function (fun () ->
         Result.get_ok
-        @@ Ofountain.create_decoder ~data_block_buffer ~data_block_size param)
+        @@ Olt.create_decoder ~data_block_buffer ~data_block_size param)
   in
   {
     param;
@@ -100,7 +100,7 @@ let make_setup ~systematic ~encode_all_upfront ~data_block_count ~max_redundancy
 
 let check_recovered_data decoder (data_blocks_copy : Cstruct.t array)
     (arr : Cstruct.t array) : unit =
-  let data_block_count = Ofountain.data_block_count_of_decoder decoder in
+  let data_block_count = Olt.data_block_count_of_decoder decoder in
   assert (data_block_count = Array.length data_blocks_copy);
   assert (data_block_count = Array.length arr);
   for i = 0 to Array.length data_blocks_copy - 1 do
@@ -112,13 +112,13 @@ let check_recovered_data decoder (data_blocks_copy : Cstruct.t array)
   done
 
 let run_once (setup : setup) : stats =
-  let maybe_decode (stats : stats) (drop : Ofountain.drop) :
-      stats * (Ofountain.decode_status, Ofountain.decode_error) result =
+  let maybe_decode (stats : stats) (drop : Olt.drop) :
+      stats * (Olt.decode_status, Olt.decode_error) result =
     let stats = { stats with drops_used = stats.drops_used + 1 } in
     if Random.float 1.0 < setup.data_loss_rate then (stats, Ok `Ongoing)
     else
       let decoding_time, decode_res =
-        time_function (fun () -> Ofountain.decode_one setup.decoder drop)
+        time_function (fun () -> Olt.decode_one setup.decoder drop)
       in
       let stats =
         { stats with decoding_time = stats.decoding_time +. decoding_time }
@@ -128,7 +128,7 @@ let run_once (setup : setup) : stats =
   let aux_encode_upfront (data_blocks_copy : Cstruct.t array) (stats : stats) :
       stats =
     let encoding_time, encode_res =
-      time_function (fun () -> Ofountain.encode_all setup.encoder)
+      time_function (fun () -> Olt.encode_all setup.encoder)
     in
     let stats =
       { stats with encoding_time = stats.encoding_time +. encoding_time }
@@ -151,7 +151,7 @@ let run_once (setup : setup) : stats =
   let rec aux_encode_lazy (data_blocks_copy : Cstruct.t array) (stats : stats) :
       stats =
     let encoding_time, encode_res =
-      time_function (fun () -> Ofountain.encode_one setup.encoder)
+      time_function (fun () -> Olt.encode_one setup.encoder)
     in
     let stats =
       { stats with encoding_time = stats.encoding_time +. encoding_time }
@@ -168,11 +168,11 @@ let run_once (setup : setup) : stats =
         | Error `Cannot_recover -> stats
         | Error _ -> failwith "Unexpected case")
   in
-  Ofountain.reset_encoder setup.encoder;
-  Ofountain.reset_decoder setup.decoder;
-  let data_block_count = Ofountain.data_block_count_of_encoder setup.encoder in
-  let data_block_size = Ofountain.data_block_size_of_encoder setup.encoder in
-  let data_blocks = Ofountain.data_blocks_of_encoder setup.encoder in
+  Olt.reset_encoder setup.encoder;
+  Olt.reset_decoder setup.decoder;
+  let data_block_count = Olt.data_block_count_of_encoder setup.encoder in
+  let data_block_size = Olt.data_block_size_of_encoder setup.encoder in
+  let data_blocks = Olt.data_blocks_of_encoder setup.encoder in
   Array.iter
     (fun block ->
       for i = 0 to setup.data_block_size - 1 do
@@ -192,7 +192,7 @@ let run_once (setup : setup) : stats =
 let run (setup : setup) : combined_stats =
   let stats_collection = Array.init setup.rounds (fun _ -> run_once setup) in
   let data_block_count =
-    float_of_int @@ Ofountain.Param.data_block_count setup.param
+    float_of_int @@ Olt.Param.data_block_count setup.param
   in
   let sum =
     Array.fold_left
@@ -224,22 +224,22 @@ let run (setup : setup) : combined_stats =
   }
 
 let calc_max_redundancy (setup : setup) : float =
-  let data_block_count = Ofountain.data_block_count_of_encoder setup.encoder in
-  let max_drop_count = Ofountain.max_drop_count_of_encoder setup.encoder in
+  let data_block_count = Olt.data_block_count_of_encoder setup.encoder in
+  let max_drop_count = Olt.max_drop_count_of_encoder setup.encoder in
   100.0
   *. (float_of_int (max_drop_count - data_block_count)
      /. float_of_int data_block_count)
 
 let print_setup (setup : setup) =
-  let data_block_count = Ofountain.data_block_count_of_encoder setup.encoder in
-  let max_drop_count = Ofountain.max_drop_count_of_encoder setup.encoder in
+  let data_block_count = Olt.data_block_count_of_encoder setup.encoder in
+  let max_drop_count = Olt.max_drop_count_of_encoder setup.encoder in
   let max_redundancy = calc_max_redundancy setup in
   let ideal_coverable_data_loss_rate =
     max_redundancy /. (100.0 +. max_redundancy)
   in
   Printf.printf "  setup:\n";
   Printf.printf "    systematic:                       %b\n"
-    (Ofountain.encoder_is_systematic setup.encoder);
+    (Olt.encoder_is_systematic setup.encoder);
   Printf.printf "    encode all drops upfront:         %b\n"
     setup.encode_all_upfront;
   Printf.printf "    data block count:                 %5d\n" data_block_count;
@@ -274,7 +274,7 @@ let print_stats (setup : setup) (stats : combined_stats) =
     /. stats.average_drops_used);
   let data_byte_count_per_round =
     float_of_int
-      (setup.data_block_size * Ofountain.Param.data_block_count setup.param)
+      (setup.data_block_size * Olt.Param.data_block_count setup.param)
   in
   Printf.printf "    average encoding data Mbytes/s:  %10.3f\n"
     (data_byte_count_per_round
@@ -297,7 +297,7 @@ let run_and_print (setup : setup) =
     "Simulation at data loss rate of %.1f%%, at max redundancy of %.1f%%, %s\n"
     (100.0 *. setup.data_loss_rate)
     max_redundancy
-    (if Ofountain.Param.systematic setup.param then "systematic"
+    (if Olt.Param.systematic setup.param then "systematic"
     else "non-systematic");
   print_setup setup;
   let stats = run setup in

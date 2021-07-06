@@ -1,7 +1,7 @@
 (executable
  (flags     (-w "+a-4-9-29-40-42-44-48@8"))
  (name main)
- (libraries ofountain
+ (libraries olt
             alcotest
             qcheck
             qcheck-alcotest
