@@ -15,15 +15,6 @@ let get_data_block_indices_onto (param : Param.t) (drop : Drop.t)
   if systematic && drop_index < data_block_count then (
     assert (degree = 1);
     onto.(0) <- drop_index)
-  (* else if data_block_count >= 10 && degree >= data_block_count / 10 then *)
-    (* let rng = *)
-      (* Rand.create_bounded_rng ~bound:data_block_count (Drop.index drop) *)
-    (* in *)
-    (* let pick_start = Rand.gen_int_bounded rng in *)
-    (* for i = 0 to degree - 1 do *)
-      (* let pick = (pick_start + i * 3) mod degree in *)
-      (* onto.(i) <- pick *)
-    (* done *)
   else
     let set = Hash_int_set.create degree in
     let rng =
