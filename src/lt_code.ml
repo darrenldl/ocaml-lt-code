@@ -168,6 +168,7 @@ end
 module Decode = struct
   type error =
     [ `Invalid_drop_index
+    | `Invalid_drop_degree
     | `Invalid_drop_count
     | `Invalid_data_block_buffer
     | `Invalid_data_block_size
@@ -372,7 +373,11 @@ module Decode = struct
       Error `Invalid_drop_size
     else
       let drop_index = Drop.index drop in
-      if data_is_ready decoder then Ok (`Success decoder.data_blocks)
+      if drop_index >= Param.max_drop_count decoder.param then
+        Error `Invalid_drop_index
+      else if Drop.degree drop >= Param.data_block_count decoder.param then
+        Error `Invalid_drop_degree
+      else if data_is_ready decoder then Ok (`Success decoder.data_blocks)
       else if max_tries_reached decoder then Error `Cannot_recover
       else
         match decoder.drops.(drop_index) with

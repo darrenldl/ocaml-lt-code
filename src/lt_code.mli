@@ -79,6 +79,7 @@ val encode_all : encoder -> drop array
 
 type decode_error =
   [ `Invalid_drop_index
+  | `Invalid_drop_degree
   | `Invalid_drop_count
   | `Invalid_data_block_buffer
   | `Invalid_data_block_size
