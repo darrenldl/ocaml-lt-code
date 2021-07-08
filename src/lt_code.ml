@@ -316,11 +316,11 @@ module Decode = struct
     ]
 
   let reduce_one_step (decoder : decoder) : reduction_one_step_status =
-    let degree_1_found =
+    let new_usable_degree_1_found =
       CCArray.foldi
-        (fun degree_1_found drop_index drop ->
+        (fun new_usable_degree_1_found drop_index drop ->
           match drop with
-          | None -> degree_1_found
+          | None -> new_usable_degree_1_found
           | Some drop_data ->
               if Graph.degree_of_drop ~drop_index decoder.graph = 1 then
                 let data_index =
@@ -333,11 +333,11 @@ module Decode = struct
                   Graph.remove_edge ~data_index ~drop_index decoder.graph;
                   propagate_data_xor ~data_index decoder;
                   true)
-                else degree_1_found
-              else degree_1_found)
+                else new_usable_degree_1_found
+              else new_usable_degree_1_found)
         false decoder.drops
     in
-    if degree_1_found then `Ongoing
+    if new_usable_degree_1_found then `Ongoing
     else if
       decoder.graph.data_block_solved_count
       = Param.data_block_count decoder.param
