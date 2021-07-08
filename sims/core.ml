@@ -74,7 +74,8 @@ let make_setup ~systematic ~encode_all_upfront ~data_block_count ~max_redundancy
   in
   let encoder_setup_time, encoder =
     time_function (fun () ->
-        Result.get_ok @@ Lt_code.create_encoder ~drop_data_buffer param data_blocks)
+        Result.get_ok
+        @@ Lt_code.create_encoder ~drop_data_buffer param data_blocks)
   in
   let data_block_buffer =
     Array.init (Lt_code.Param.data_block_count param) (fun _ ->
@@ -233,7 +234,7 @@ let print_setup (setup : setup) =
   let data_block_count = Lt_code.data_block_count_of_encoder setup.encoder in
   let max_drop_count = Lt_code.max_drop_count_of_encoder setup.encoder in
   let max_redundancy = calc_max_redundancy setup in
-  let ideal_coverable_data_loss_rate =
+  let ideal_recoverable_data_loss_rate =
     max_redundancy /. (100.0 +. max_redundancy)
   in
   Printf.printf "  setup:\n";
@@ -249,45 +250,62 @@ let print_setup (setup : setup) =
   Printf.printf "    data loss rate:                   %9.3f%%\n"
     (100.0 *. setup.data_loss_rate);
   Printf.printf "    ideal recoverable data loss rate: %9.3f%%\n"
-    (100.0 *. ideal_coverable_data_loss_rate);
+    (100.0 *. ideal_recoverable_data_loss_rate);
   Printf.printf "    rounds:                           %5d\n" setup.rounds
 
 let print_stats (setup : setup) (stats : combined_stats) =
   let s_to_us_multiplier = 1_000_000.0 in
+  let ideal_recoverable_data_loss_rate =
+    stats.average_overhead /. (1.0 +. stats.average_overhead)
+  in
   Printf.printf "  stats:\n";
-  Printf.printf "    encoder setup time:              %10.3fus\n"
+  Printf.printf
+    "    encoder setup time:                                 %10.3fus\n"
     (s_to_us_multiplier *. stats.encoder_setup_time);
-  Printf.printf "    decoder setup time:              %10.3fus\n"
+  Printf.printf
+    "    decoder setup time:                                 %10.3fus\n"
     (s_to_us_multiplier *. stats.decoder_setup_time);
-  Printf.printf "    average encoding time per round: %10.3fus\n"
+  Printf.printf
+    "    average encoding time per round:                    %10.3fus\n"
     (s_to_us_multiplier *. stats.average_encoding_time);
-  Printf.printf "    average decoding time per round: %10.3fus\n"
+  Printf.printf
+    "    average decoding time per round:                    %10.3fus\n"
     (s_to_us_multiplier *. stats.average_decoding_time);
-  Printf.printf "    average encoding time per drop:  %10.3fus\n"
+  Printf.printf
+    "    average encoding time per drop:                     %10.3fus\n"
     (s_to_us_multiplier
     *. stats.average_encoding_time
     /. stats.average_drops_used);
-  Printf.printf "    average decoding time per drop:  %10.3fus\n"
+  Printf.printf
+    "    average decoding time per drop:                     %10.3fus\n"
     (s_to_us_multiplier
     *. stats.average_decoding_time
     /. stats.average_drops_used);
   let data_byte_count_per_round =
-    float_of_int (setup.data_block_size * Lt_code.Param.data_block_count setup.param)
+    float_of_int
+      (setup.data_block_size * Lt_code.Param.data_block_count setup.param)
   in
-  Printf.printf "    average encoding data Mbytes/s:  %10.3f\n"
+  Printf.printf
+    "    average encoding data Mbytes/s:                     %10.3f\n"
     (data_byte_count_per_round
     /. 1024.0
     /. 1024.0
     /. stats.average_encoding_time);
-  Printf.printf "    average decoding data Mbytes/s:  %10.3f\n"
+  Printf.printf
+    "    average decoding data Mbytes/s:                     %10.3f\n"
     (data_byte_count_per_round
     /. 1024.0
     /. 1024.0
     /. stats.average_decoding_time);
-  Printf.printf "    success rate:                    %10.3f%%\n"
+  Printf.printf
+    "    success rate:                                       %10.3f%%\n"
     (100.0 *. stats.success_rate);
-  Printf.printf "    average overhead:                %10.3f%%\n"
-    (100.0 *. stats.average_overhead)
+  Printf.printf
+    "    average overhead:                                   %10.3f%%\n"
+    (100.0 *. stats.average_overhead);
+  Printf.printf
+    "    ideal recoverable data loss rate from avg overhead: %10.3f%%\n"
+    (100.0 *. ideal_recoverable_data_loss_rate)
 
 let run_and_print (setup : setup) =
   let max_redundancy = calc_max_redundancy setup in
