@@ -375,7 +375,7 @@ module Decode = struct
       let drop_index = Drop.index drop in
       if drop_index >= Param.max_drop_count decoder.param then
         Error `Invalid_drop_index
-      else if Drop.degree drop >= Param.data_block_count decoder.param then
+      else if Drop.degree drop > Param.data_block_count decoder.param then
         Error `Invalid_drop_degree
       else if data_is_ready decoder then Ok (`Success decoder.data_blocks)
       else if max_tries_reached decoder then Error `Cannot_recover
