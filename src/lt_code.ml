@@ -315,25 +315,28 @@ module Decode = struct
     ]
 
   let reduce_one_step (decoder : decoder) : reduction_one_step_status =
-    let degree_1_found = ref false in
-    Array.iteri
-      (fun drop_index drop ->
-        match drop with
-        | None -> ()
-        | Some drop_data ->
-            if Graph.degree_of_drop ~drop_index decoder.graph = 1 then (
-              degree_1_found := true;
-              let data_index =
-                Hash_int_set.choose decoder.graph.drop_edges.(drop_index)
-              in
-              if not decoder.graph.data_block_is_solved.(data_index) then (
-                Utils.blit_onto ~src:drop_data
-                  ~onto:decoder.data_blocks.(data_index);
-                Graph.mark_data_as_solved ~data_index decoder.graph;
-                Graph.remove_edge ~data_index ~drop_index decoder.graph;
-                propagate_data_xor ~data_index decoder)))
-      decoder.drops;
-    if !degree_1_found then `Ongoing
+    let degree_1_found =
+      CCArray.foldi
+        (fun degree_1_found drop_index drop ->
+          match drop with
+          | None -> degree_1_found
+          | Some drop_data ->
+              if Graph.degree_of_drop ~drop_index decoder.graph = 1 then
+                let data_index =
+                  Hash_int_set.choose decoder.graph.drop_edges.(drop_index)
+                in
+                if not decoder.graph.data_block_is_solved.(data_index) then (
+                  Utils.blit_onto ~src:drop_data
+                    ~onto:decoder.data_blocks.(data_index);
+                  Graph.mark_data_as_solved ~data_index decoder.graph;
+                  Graph.remove_edge ~data_index ~drop_index decoder.graph;
+                  propagate_data_xor ~data_index decoder;
+                  true)
+                else degree_1_found
+              else degree_1_found)
+        false decoder.drops
+    in
+    if degree_1_found then `Ongoing
     else if
       decoder.graph.data_block_solved_count
       = Param.data_block_count decoder.param
