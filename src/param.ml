@@ -1,6 +1,6 @@
 type t = {
   systematic : bool;
-  systematic_scaling_factor : int;
+  systematic_scaling_factor : float;
   data_block_count : int;
   max_drop_count : int;
   dist : Dist.t;
@@ -22,7 +22,7 @@ let max_drop_count t = t.max_drop_count
 
 let dist t = t.dist
 
-let make ?(systematic_scaling_factor = 10) ~systematic ~data_block_count
+let make ?(systematic_scaling_factor = 10.0) ~systematic ~data_block_count
     ~max_drop_count () : (t, error) result =
   if data_block_count <= 0 || data_block_count > Constants.max_data_block_count
   then Error `Invalid_data_block_count
@@ -30,7 +30,7 @@ let make ?(systematic_scaling_factor = 10) ~systematic ~data_block_count
     max_drop_count < data_block_count
     || max_drop_count > Constants.max_drop_count
   then Error `Invalid_drop_count
-  else if systematic_scaling_factor < 1 then
+  else if systematic_scaling_factor <= 0.0 then
     Error `Invalid_systematic_scaling_factor
   else
     Ok
