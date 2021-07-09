@@ -242,7 +242,7 @@ let print_setup (setup : setup) =
   Printf.printf "  setup:\n";
   Printf.printf "    systematic:                       %b\n"
     (Lt_code.encoder_is_systematic setup.encoder);
-  Printf.printf "    systematic scaling factor:        %5d\n"
+  Printf.printf "    systematic scaling factor:        %9.3f\n"
     (Lt_code.Param.systematic_scaling_factor setup.param);
   Printf.printf "    encode all drops upfront:         %b\n"
     setup.encode_all_upfront;
