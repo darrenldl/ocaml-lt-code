@@ -53,15 +53,17 @@ let empty_stats_sum =
     total_success_count = 0;
   }
 
-let make_setup ~systematic ~encode_all_upfront ~data_block_count ~max_redundancy
-    ~data_block_size ~data_loss_rate ~rounds =
+let make_setup ?systematic_scaling_factor ~systematic ~encode_all_upfront
+    ~data_block_count ~max_redundancy ~data_block_size ~data_loss_rate ~rounds
+    () =
   let max_drop_count =
     data_block_count
     + int_of_float (max_redundancy *. float_of_int data_block_count)
   in
   let param =
     Result.get_ok
-    @@ Lt_code.Param.make ~systematic ~data_block_count ~max_drop_count
+    @@ Lt_code.Param.make ?systematic_scaling_factor ~systematic
+         ~data_block_count ~max_drop_count ()
   in
   assert (0.0 <= data_loss_rate);
   let drop_data_buffer =
@@ -240,6 +242,8 @@ let print_setup (setup : setup) =
   Printf.printf "  setup:\n";
   Printf.printf "    systematic:                       %b\n"
     (Lt_code.encoder_is_systematic setup.encoder);
+  Printf.printf "    systematic scaling factor:        %5d\n"
+    (Lt_code.Param.systematic_scaling_factor setup.param);
   Printf.printf "    encode all drops upfront:         %b\n"
     setup.encode_all_upfront;
   Printf.printf "    data block count:                 %5d\n" data_block_count;
