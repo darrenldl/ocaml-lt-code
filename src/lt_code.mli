@@ -1,6 +1,10 @@
+(** {1 Constants}  *)
+
 val max_data_block_count : int
 
 val max_drop_count : int
+
+(** {1 Basic types} *)
 
 module Param : sig
   type t
@@ -8,22 +12,25 @@ module Param : sig
   type error =
     [ `Invalid_data_block_count
     | `Invalid_drop_count
+    | `Invalid_systematic_scaling_factor
     ]
 
   val systematic : t -> bool
+
+  val systematic_scaling_factor : t -> int
 
   val data_block_count : t -> int
 
   val max_drop_count : t -> int
 
   val make :
+    ?systematic_scaling_factor:int ->
     systematic:bool ->
     data_block_count:int ->
     max_drop_count:int ->
+    unit ->
     (t, error) result
 end
-
-(** {1 Basic types} *)
 
 type drop
 
@@ -37,19 +44,23 @@ type encode_error =
   [ `Inconsistent_data_block_size
   | `Invalid_drop_count
   | `Invalid_data_block_count
+  | `Invalid_systematic_scaling_factor
   | `Invalid_drop_data_buffer
   ]
 
+(** {2 Basic} *)
+
 val encode :
+  ?systematic_scaling_factor:int ->
   ?systematic:bool ->
   ?drop_data_buffer:Cstruct.t array ->
   max_drop_count:int ->
   Cstruct.t array ->
   (Param.t * drop array, encode_error) result
-(** {2 Basic} *)
+
+(** {2 Advanced} *)
 
 type encoder
-(** {2 Advanced} *)
 
 val create_encoder :
   ?drop_data_buffer:Cstruct.t array ->

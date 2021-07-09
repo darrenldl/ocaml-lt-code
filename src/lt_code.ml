@@ -38,6 +38,7 @@ module Encode = struct
     [ `Inconsistent_data_block_size
     | `Invalid_drop_count
     | `Invalid_data_block_count
+    | `Invalid_systematic_scaling_factor
     | `Invalid_drop_data_buffer
     ]
 
@@ -54,7 +55,10 @@ module Encode = struct
       if n > 0 then (
         Dist.choose_onto ~offset:data_block_count (Param.dist param) onto;
         (* we amplify the coverage of the parity drops *)
-        let multiplier = ((10 * data_block_count) + n - 1) / n in
+        let multiplier =
+          ((Param.systematic_scaling_factor param * data_block_count) + n - 1)
+          / n
+        in
         for i = data_block_count to max_drop_count - 1 do
           onto.(i) <- min data_block_count (onto.(i) * multiplier)
         done))
@@ -144,15 +148,17 @@ module Encode = struct
     in
     Array.init drops_left (fun _ -> Option.get @@ encode_one encoder)
 
-  let encode ?(systematic = true) ?drop_data_buffer ~max_drop_count
-      (data_blocks : Cstruct.t array) : (Param.t * Drop.t array, error) result =
+  let encode ?systematic_scaling_factor ?(systematic = true) ?drop_data_buffer
+      ~max_drop_count (data_blocks : Cstruct.t array) :
+      (Param.t * Drop.t array, error) result =
     match
-      Param.make ~systematic ~data_block_count:(Array.length data_blocks)
-        ~max_drop_count
+      Param.make ?systematic_scaling_factor ~systematic
+        ~data_block_count:(Array.length data_blocks) ~max_drop_count ()
     with
     | Error e -> (
         match e with
-        | (`Invalid_data_block_count | `Invalid_drop_count) as e ->
+        | ( `Invalid_data_block_count | `Invalid_drop_count
+          | `Invalid_systematic_scaling_factor ) as e ->
             Error (e :> error))
     | Ok param -> (
         match create_encoder ?drop_data_buffer param data_blocks with
