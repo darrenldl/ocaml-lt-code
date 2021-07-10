@@ -239,6 +239,9 @@ let print_setup (setup : setup) =
   let ideal_recoverable_data_loss_rate =
     max_redundancy /. (100.0 +. max_redundancy)
   in
+  let ideal_average_overhead =
+    setup.data_loss_rate /. (1.0 -. setup.data_loss_rate)
+  in
   Printf.printf "  setup:\n";
   Printf.printf "    systematic:                       %b\n"
     (Lt_code.encoder_is_systematic setup.encoder);
@@ -255,6 +258,8 @@ let print_setup (setup : setup) =
     (100.0 *. setup.data_loss_rate);
   Printf.printf "    ideal recoverable data loss rate: %9.3f%%\n"
     (100.0 *. ideal_recoverable_data_loss_rate);
+  Printf.printf "    ideal average overhead:           %9.3f%%\n"
+    (100.0 *. ideal_average_overhead);
   Printf.printf "    rounds:                           %5d\n" setup.rounds
 
 let print_stats (setup : setup) (stats : combined_stats) =
