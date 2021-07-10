@@ -56,11 +56,11 @@ module Encode = struct
         Dist.choose_onto ~offset:data_block_count (Param.dist param) onto;
         (* we amplify the coverage of the parity drops *)
         let multiplier =
-          int_of_float @@ Float.round
-          (
-          (Param.systematic_scaling_factor param *. float_of_int data_block_count)
-          /. float_of_int n
-      )
+          int_of_float
+          @@ Float.round
+               (Param.systematic_scaling_factor param
+               *. float_of_int data_block_count
+               /. float_of_int n)
         in
         for i = data_block_count to max_drop_count - 1 do
           onto.(i) <- max 1 (min data_block_count (onto.(i) * multiplier))
