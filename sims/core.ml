@@ -310,6 +310,9 @@ let print_stats (setup : setup) (stats : combined_stats) =
     "    success rate:                                       %10.3f%%\n"
     (100.0 *. stats.success_rate);
   Printf.printf
+    "    data loss rate improvement:                         %10.3f%%\n"
+    (100.0 *. (setup.data_loss_rate -. (1.0 -. stats.success_rate)));
+  Printf.printf
     "    average overhead:                                   %10.3f%%\n"
     (100.0 *. stats.average_overhead);
   Printf.printf
