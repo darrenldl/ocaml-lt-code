@@ -1,4 +1,4 @@
-# Olt
+# OCaml-LT-code
 
 OCaml implementation of Luby transform code
 
