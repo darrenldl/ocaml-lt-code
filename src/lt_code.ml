@@ -140,8 +140,7 @@ module Encode = struct
         Utils.zero_cstruct drop_data;
         Array.iter
           (fun i -> Utils.xor_onto ~src:encoder.data_blocks.(i) ~onto:drop_data)
-          data_indices;
-      );
+          data_indices);
       encoder.cur_drop_index <- encoder.cur_drop_index + 1;
       Some drop)
     else None
@@ -332,18 +331,18 @@ module Decode = struct
           match drop with
           | None -> new_usable_degree_1_found
           | Some drop_data ->
-              if Graph.degree_of_drop ~drop_index decoder.graph = 1 then
+              if Graph.degree_of_drop ~drop_index decoder.graph = 1 then (
                 let data_index =
                   Hash_int_set.choose decoder.graph.drop_edges.(drop_index)
                 in
+                Graph.remove_edge ~data_index ~drop_index decoder.graph;
                 if not decoder.graph.data_block_is_solved.(data_index) then (
                   Utils.blit_onto ~src:drop_data
                     ~onto:decoder.data_blocks.(data_index);
                   Graph.mark_data_as_solved ~data_index decoder.graph;
-                  Graph.remove_edge ~data_index ~drop_index decoder.graph;
                   propagate_data_xor ~data_index decoder;
                   true)
-                else new_usable_degree_1_found
+                else new_usable_degree_1_found)
               else new_usable_degree_1_found)
         false decoder.drops
     in
