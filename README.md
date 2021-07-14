@@ -14,7 +14,8 @@ The robust soliton distribution is used for the degree selection, with constant
 factors tuned to favour low degree count.
 There is an additional modification for the case of systematic encoding,
 in which degrees of parity drops are multiplied
-by a factor proportional to the ratio between data blocks and parity drops.
+by a factor proportional to the ratio between data blocks and parity drops
+and an additional adjustable factor.
 This essentially "amplifies" the coverage of each parity drop due to
 the reduced total number of parity drops.
 
