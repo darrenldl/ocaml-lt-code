@@ -56,7 +56,7 @@ let choose_onto ?(offset = 0) (d : t) (arr : int array) : unit =
   assert (offset < n);
   Random.self_init ();
   for i = offset to n - 1 do
-    arr.(i) <- aux ()
+    Array.unsafe_set arr i (aux ())
   done
 
 let choose_n (d : t) n : int array =

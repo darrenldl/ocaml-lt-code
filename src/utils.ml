@@ -37,5 +37,5 @@ let cstruct_array_is_consistent (arr : Cstruct.t array) : bool =
 
 let fill_array (v : 'a) (arr : 'a array) : unit =
   for i = 0 to Array.length arr - 1 do
-    arr.(i) <- v
+    Array.unsafe_set arr i v
   done

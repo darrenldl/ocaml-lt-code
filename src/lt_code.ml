@@ -11,10 +11,12 @@ let get_data_block_indices_onto (param : Param.t) (drop : Drop.t)
       aux rng degree set)
   in
   let degree = Drop.degree drop in
+  assert (Array.length onto = degree);
   let drop_index = Drop.index drop in
   if systematic && drop_index < data_block_count then (
     assert (degree = 1);
-    onto.(0) <- drop_index)
+    Array.unsafe_set onto 0 drop_index
+    )
   else
     let set = Hash_int_set.create degree in
     let rng =
@@ -24,7 +26,7 @@ let get_data_block_indices_onto (param : Param.t) (drop : Drop.t)
     let c = ref 0 in
     Hash_int_set.iter
       (fun i ->
-        onto.(!c) <- i;
+        Array.unsafe_set onto !c i;
         c := !c + 1)
       set
 
@@ -49,7 +51,7 @@ module Encode = struct
     let systematic = Param.systematic param in
     if systematic then (
       for i = 0 to data_block_count - 1 do
-        onto.(i) <- 1
+        Array.unsafe_set onto i 1
       done;
       let n = max_drop_count - data_block_count in
       if n > 0 then (
@@ -63,11 +65,16 @@ module Encode = struct
                /. float_of_int n)
         in
         for i = data_block_count to max_drop_count - 1 do
-          onto.(i) <- max 1 (min data_block_count (onto.(i) * multiplier))
+          Array.unsafe_set onto i
+          (
+          max 1 (min data_block_count (onto.(i) * multiplier))
+          )
         done))
     else Dist.choose_onto (Param.dist param) onto;
     (* fix a random drop to be degree 1 to ensure decoding is at least possible *)
-    if not systematic then onto.(Rand.gen_int_global max_drop_count) <- 1
+    if not systematic then
+      Array.unsafe_set onto 
+      (Rand.gen_int_global max_drop_count) 1
 
   let gen_degrees (param : Param.t) : int array =
     let max_drop_count = Param.max_drop_count param in
@@ -122,7 +129,6 @@ module Encode = struct
               }
 
   let reset_encoder (encoder : encoder) : unit =
-    Utils.zero_cstruct_array encoder.drop_data_buffer;
     encoder.cur_drop_index <- 0;
     gen_degrees_onto encoder.param encoder.degrees
 
@@ -130,17 +136,22 @@ module Encode = struct
     let drop_count = Param.max_drop_count encoder.param in
     let index = encoder.cur_drop_index in
     if index < drop_count then (
-      let degree = encoder.degrees.(index) in
-      let drop_data = encoder.drop_data_buffer.(index) in
+      let degree = Array.unsafe_get encoder.degrees index in
+      let drop_data = Array.unsafe_get encoder.drop_data_buffer index in
       let drop = Drop.make_exn ~index ~degree ~data:drop_data in
       let data_indices = get_data_block_indices encoder.param drop in
       if Array.length data_indices = 1 then
-        let data_index = data_indices.(0) in
-        Utils.blit_onto ~src:encoder.data_blocks.(data_index) ~onto:drop_data
-      else
+        let data_index = Array.unsafe_get data_indices 0 in
+        let src = Array.unsafe_get encoder.data_blocks data_index in
+        Utils.blit_onto ~src ~onto:drop_data
+      else (
+        Utils.zero_cstruct drop_data;
         Array.iter
-          (fun i -> Utils.xor_onto ~src:encoder.data_blocks.(i) ~onto:drop_data)
+          (fun i ->
+            let src = Array.unsafe_get encoder.data_blocks i in
+            Utils.xor_onto ~src ~onto:drop_data)
           data_indices;
+      );
       encoder.cur_drop_index <- encoder.cur_drop_index + 1;
       Some drop)
     else None
@@ -238,11 +249,12 @@ module Decode = struct
       g.drop_fill_count <- g.drop_fill_count + 1
 
     let mark_data_as_solved ~data_index (g : t) : unit =
-      g.data_block_is_solved.(data_index) <- true;
+      Array.unsafe_set g.data_block_is_solved data_index true;
       g.data_block_solved_count <- g.data_block_solved_count + 1
 
     let degree_of_drop ~drop_index (g : t) : int =
-      Hash_int_set.cardinal g.drop_edges.(drop_index)
+      Hash_int_set.cardinal
+      (Array.unsafe_get g.drop_edges drop_index)
   end
 
   type decoder = {
@@ -301,14 +313,15 @@ module Decode = struct
     Hash_int_set.iter
       (fun data_index ->
         if decoder.graph.data_block_is_solved.(data_index) then (
+          let src = Array.unsafe_get decoder.data_blocks data_index in
           Utils.xor_onto
-            ~src:decoder.data_blocks.(data_index)
-            ~onto:(Option.get decoder.drops.(drop_index));
+            ~src
+            ~onto:(Option.get @@ Array.unsafe_get decoder.drops drop_index);
           Graph.remove_edge ~data_index ~drop_index decoder.graph))
       data_indices
 
   let propagate_data_xor ~data_index (decoder : decoder) : unit =
-    let data = decoder.data_blocks.(data_index) in
+    let data = Array.unsafe_get decoder.data_blocks data_index in
     Hash_int_set.iter
       (fun drop_index ->
         Option.iter
@@ -335,9 +348,12 @@ module Decode = struct
                 let data_index =
                   Hash_int_set.choose decoder.graph.drop_edges.(drop_index)
                 in
-                if not decoder.graph.data_block_is_solved.(data_index) then (
+                let solved =
+                  Array.unsafe_get decoder.graph.data_block_is_solved data_index in
+                if not solved then (
+                  let onto = Array.unsafe_get decoder.data_blocks data_index in
                   Utils.blit_onto ~src:drop_data
-                    ~onto:decoder.data_blocks.(data_index);
+                    ~onto;
                   Graph.mark_data_as_solved ~data_index decoder.graph;
                   Graph.remove_edge ~data_index ~drop_index decoder.graph;
                   propagate_data_xor ~data_index decoder;
