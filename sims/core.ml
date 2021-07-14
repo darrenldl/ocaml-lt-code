@@ -13,14 +13,16 @@ type setup = {
 type stats = {
   encoding_time : float;
   decoding_time : float;
-  drops_used : int;
+  drops_encoded : int;
+  drops_decoded : int;
   success : bool;
 }
 
 type stats_sum = {
   total_encoding_time : float;
   total_decoding_time : float;
-  total_drops_used : int;
+  total_drops_encoded : int;
+  total_drops_decoded : int;
   total_overhead : float;
   total_success_count : int;
 }
@@ -30,7 +32,8 @@ type combined_stats = {
   decoder_setup_time : float;
   average_encoding_time : float;
   average_decoding_time : float;
-  average_drops_used : float;
+  average_drops_encoded : float;
+  average_drops_decoded : float;
   average_overhead : float;
   success_rate : float;
 }
@@ -42,13 +45,20 @@ let time_function (f : unit -> 'a) : float * 'a =
   (end_exc -. start, res)
 
 let empty_stats =
-  { encoding_time = 0.0; decoding_time = 0.0; drops_used = 0; success = false }
+  {
+    encoding_time = 0.0;
+    decoding_time = 0.0;
+    drops_encoded = 0;
+    drops_decoded = 0;
+    success = false;
+  }
 
 let empty_stats_sum =
   {
     total_encoding_time = 0.0;
     total_decoding_time = 0.0;
-    total_drops_used = 0;
+    total_drops_encoded = 0;
+    total_drops_decoded = 0;
     total_overhead = 0.0;
     total_success_count = 0;
   }
@@ -116,9 +126,9 @@ let check_recovered_data decoder (data_blocks_copy : Cstruct.t array)
 let run_once (setup : setup) : stats =
   let maybe_decode (stats : stats) (drop : Lt_code.drop) :
       stats * (Lt_code.decode_status, Lt_code.decode_error) result =
-    let stats = { stats with drops_used = stats.drops_used + 1 } in
     if Random.float 1.0 < setup.data_loss_rate then (stats, Ok `Ongoing)
     else
+      let stats = { stats with drops_decoded = stats.drops_decoded + 1 } in
       let decoding_time, decode_res =
         time_function (fun () -> Lt_code.decode_one setup.decoder drop)
       in
@@ -133,7 +143,11 @@ let run_once (setup : setup) : stats =
       time_function (fun () -> Lt_code.encode_all setup.encoder)
     in
     let stats =
-      { stats with encoding_time = stats.encoding_time +. encoding_time }
+      {
+        stats with
+        drops_encoded = Lt_code.max_drop_count_of_encoder setup.encoder;
+        encoding_time = stats.encoding_time +. encoding_time;
+      }
     in
     Array.fold_left
       (fun stats drop ->
@@ -156,7 +170,11 @@ let run_once (setup : setup) : stats =
       time_function (fun () -> Lt_code.encode_one setup.encoder)
     in
     let stats =
-      { stats with encoding_time = stats.encoding_time +. encoding_time }
+      {
+        stats with
+        drops_encoded = stats.drops_encoded + 1;
+        encoding_time = stats.encoding_time +. encoding_time;
+      }
     in
     match encode_res with
     | None -> stats
@@ -200,14 +218,15 @@ let run (setup : setup) : combined_stats =
     Array.fold_left
       (fun sum stats ->
         let overhead =
-          (float_of_int stats.drops_used -. data_block_count)
+          (float_of_int stats.drops_encoded -. data_block_count)
           /. data_block_count
         in
         assert (overhead >= 0.0);
         {
           total_encoding_time = sum.total_encoding_time +. stats.encoding_time;
           total_decoding_time = sum.total_decoding_time +. stats.decoding_time;
-          total_drops_used = sum.total_drops_used + stats.drops_used;
+          total_drops_encoded = sum.total_drops_encoded + stats.drops_encoded;
+          total_drops_decoded = sum.total_drops_decoded + stats.drops_decoded;
           total_overhead = sum.total_overhead +. overhead;
           total_success_count =
             (sum.total_success_count + if stats.success then 1 else 0);
@@ -220,7 +239,8 @@ let run (setup : setup) : combined_stats =
     decoder_setup_time = setup.decoder_setup_time;
     average_encoding_time = sum.total_encoding_time /. rounds;
     average_decoding_time = sum.total_decoding_time /. rounds;
-    average_drops_used = float_of_int sum.total_drops_used /. rounds;
+    average_drops_encoded = float_of_int sum.total_drops_encoded /. rounds;
+    average_drops_decoded = float_of_int sum.total_drops_decoded /. rounds;
     average_overhead = sum.total_overhead /. rounds;
     success_rate = float_of_int sum.total_success_count /. rounds;
   }
@@ -284,12 +304,12 @@ let print_stats (setup : setup) (stats : combined_stats) =
     "    average encoding time per drop:                     %10.3fus\n"
     (s_to_us_multiplier
     *. stats.average_encoding_time
-    /. stats.average_drops_used);
+    /. stats.average_drops_encoded);
   Printf.printf
     "    average decoding time per drop:                     %10.3fus\n"
     (s_to_us_multiplier
     *. stats.average_decoding_time
-    /. stats.average_drops_used);
+    /. stats.average_drops_decoded);
   let data_byte_count_per_round =
     float_of_int
       (setup.data_block_size * Lt_code.Param.data_block_count setup.param)
