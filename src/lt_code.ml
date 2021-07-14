@@ -122,7 +122,6 @@ module Encode = struct
               }
 
   let reset_encoder (encoder : encoder) : unit =
-    Utils.zero_cstruct_array encoder.drop_data_buffer;
     encoder.cur_drop_index <- 0;
     gen_degrees_onto encoder.param encoder.degrees
 
@@ -137,10 +136,12 @@ module Encode = struct
       if Array.length data_indices = 1 then
         let data_index = data_indices.(0) in
         Utils.blit_onto ~src:encoder.data_blocks.(data_index) ~onto:drop_data
-      else
+      else (
+        Utils.zero_cstruct drop_data;
         Array.iter
           (fun i -> Utils.xor_onto ~src:encoder.data_blocks.(i) ~onto:drop_data)
           data_indices;
+      );
       encoder.cur_drop_index <- encoder.cur_drop_index + 1;
       Some drop)
     else None
