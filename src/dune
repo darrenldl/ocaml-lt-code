@@ -9,5 +9,13 @@
  (instrumentation (backend bisect_ppx))
  (libraries cstruct
             containers
+            ctypes
+            ctypes.foreign
   )
+ (library_flags (-a src/lt_code.o))
+ (foreign_stubs
+  (language c)
+  (names lt_code)
+  (flags :standard -march=native -std=c11 -fPIC -O3)
+ )
  )
