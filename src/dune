@@ -12,7 +12,7 @@
             ctypes
             ctypes.foreign
   )
- (library_flags (-a src/lt_code.o))
+ (library_flags src/lt_code.o)
  (foreign_stubs
   (language c)
   (names lt_code)

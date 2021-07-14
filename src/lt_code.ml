@@ -135,7 +135,7 @@ module Encode = struct
       let data_indices = get_data_block_indices encoder.param drop in
       if Array.length data_indices = 1 then
         let data_index = data_indices.(0) in
-        Utils.blit_onto ~src:encoder.data_blocks.(data_index) ~onto:drop_data
+        Utils.memcpy ~src:encoder.data_blocks.(data_index) ~dst:drop_data
       else (
         Utils.zero_cstruct drop_data;
         Array.iter
@@ -337,8 +337,8 @@ module Decode = struct
                 in
                 Graph.remove_edge ~data_index ~drop_index decoder.graph;
                 if not decoder.graph.data_block_is_solved.(data_index) then (
-                  Utils.blit_onto ~src:drop_data
-                    ~onto:decoder.data_blocks.(data_index);
+                  Utils.memcpy ~src:drop_data
+                    ~dst:decoder.data_blocks.(data_index);
                   Graph.mark_data_as_solved ~data_index decoder.graph;
                   propagate_data_xor ~data_index decoder;
                   true)

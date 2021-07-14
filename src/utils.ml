@@ -27,11 +27,18 @@ let xor_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
   (* aux 0 len src onto *)
   let src = Ctypes.(bigarray_start array1 (Cstruct.to_bigarray src)) in
   let onto = Ctypes.(bigarray_start array1 (Cstruct.to_bigarray onto)) in
-  Xor_c.xor_onto len src onto
+  Lt_code_c.xor_onto len src onto
 
-let blit_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
-  assert (Cstruct.length src = Cstruct.length onto);
-  Cstruct.blit src 0 onto 0 (Cstruct.length src)
+let memcpy ~src ~dst =
+  assert (Cstruct.length src = Cstruct.length dst);
+  let len = Cstruct.length src in
+  let src = Ctypes.(bigarray_start array1 (Cstruct.to_bigarray src)) in
+  let dst = Ctypes.(bigarray_start array1 (Cstruct.to_bigarray dst)) in
+  Lt_code_c.memcpy dst src len
+
+(* let blit_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit = *)
+  (* assert (Cstruct.length src = Cstruct.length onto); *)
+  (* Cstruct.blit src 0 onto 0 (Cstruct.length src) *)
 
 let cstruct_array_is_consistent (arr : Cstruct.t array) : bool =
   Array.length arr = 0
