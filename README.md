@@ -2,6 +2,8 @@
 
 OCaml implementation of Luby transform code
 
+[API documentation](http://darrenldl.github.io/ocaml-lt-code/)
+
 ## Technical details
 
 PRNG and hash used are based on the Lehmer random number generator to achieve good performance.
