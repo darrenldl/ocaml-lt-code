@@ -1,6 +1,11 @@
 opam-version: "2.0"
 synopsis: "OCaml implementation of Luby transform code"
 description: """
+Luby transform codes are a type of fountain codes, allowing recovery
+from missing data (or erasure).
+
+This library provides an encoder and decoder for Luby transform code,
+and can operate in systematic or non-systematic mode.
 """
 maintainer: "Darren Ldl <darrenldldev@gmail.com>"
 authors: "Darren Ldl"
@@ -10,11 +15,11 @@ bug-reports: "https://github.com/darrenldl/ofountain/issues"
 dev-repo: "git+https://github.com/darrenldl/ofountain"
 depends: [
   "ocaml" {>= "4.08.1"}
-  "bisect_ppx" {dev & >= "2.5.0"}
   "dune" {>= "2.7.0"}
-  "oseq" {>= "0.3"}
   "containers" {>= "3.4"}
-  "crowbar" {with-test}
+  "cstruct" {>= "6.0.0"}
+  "ctypes" {>= "0.18.0"}
+  "ctypes-foreign" {>= "0.18.0"}
   "alcotest" {with-test}
   "qcheck-alcotest" {with-test}
   "qcheck" {with-test}
