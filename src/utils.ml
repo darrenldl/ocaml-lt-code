@@ -5,7 +5,6 @@ let zero_cstruct_array (arr : Cstruct.t array) : unit =
 
 let xor_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
   assert (Cstruct.length src = Cstruct.length onto);
-  let len = Cstruct.length src in
   (* let get_uint64 = Cstruct.LE.get_uint64 in *)
   (* let set_uint64 = Cstruct.LE.set_uint64 in *)
   (* let rec aux i len src onto = *)
@@ -29,14 +28,13 @@ let xor_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
   (* let onto = Ctypes.(bigarray_start array1 (Cstruct.to_bigarray onto)) in *)
   let src = Cstruct.to_bigarray src in
   let onto = Cstruct.to_bigarray onto in
-  Lt_code_stubs.xor_onto len src onto
+  Lt_code_stubs.xor_onto src onto
 
 let memcpy ~src ~dst =
   assert (Cstruct.length src = Cstruct.length dst);
-  let len = Cstruct.length src in
   let src = Cstruct.to_bigarray src in
   let dst = Cstruct.to_bigarray dst in
-  Lt_code_stubs.memcpy dst src len
+  Lt_code_stubs.memcpy src dst
 
 (* let blit_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit = *)
 (* assert (Cstruct.length src = Cstruct.length onto); *)
