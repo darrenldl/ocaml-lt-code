@@ -27,7 +27,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          opam install dune containers cstruct odoc
+          opam install dune containers cstruct odoc alcotest qcheck qcheck-alcotest
 
       - name: Run tests
         run: |
