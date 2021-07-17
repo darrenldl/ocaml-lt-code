@@ -12,10 +12,9 @@
             ctypes
             ctypes.foreign
   )
- ; (library_flags (-a src/c_code.o ))
  (foreign_stubs
   (language c)
   (names lt_code_stubs)
-  ; (flags :standard -march=native -std=c11 -fPIC -O3)
+  (flags :standard -march=native -std=c11 -fPIC -O3)
  )
  )
