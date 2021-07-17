@@ -25,8 +25,10 @@ let xor_onto ~(src : Cstruct.t) ~(onto : Cstruct.t) : unit =
   (* in *)
   (* let len = Cstruct.length src in *)
   (* aux 0 len src onto *)
-  let src = Ctypes.(bigarray_start array1 (Cstruct.to_bigarray src)) in
-  let onto = Ctypes.(bigarray_start array1 (Cstruct.to_bigarray onto)) in
+  (* let src = Ctypes.(bigarray_start array1 (Cstruct.to_bigarray src)) in *)
+  (* let onto = Ctypes.(bigarray_start array1 (Cstruct.to_bigarray onto)) in *)
+  let src = (Cstruct.to_bigarray src) in
+  let onto = (Cstruct.to_bigarray onto) in
   Lt_code_c.xor_onto len src onto
 
 let memcpy ~src ~dst =
