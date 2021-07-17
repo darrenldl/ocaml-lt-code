@@ -25,9 +25,16 @@ jobs:
         with:
           ocaml-version: ${{ matrix.ocaml-version }}
 
-      - name: Build
+      - name: Install dependencies
         run: |
           opam install dune containers cstruct odoc
+
+      - name: Run tests
+        run: |
+          eval $(opam env); make test
+
+      - name: Build doc
+        run: |
           eval $(opam env); make doc
           mkdir public
           cp -r _build/default/_doc/_html/* public/
