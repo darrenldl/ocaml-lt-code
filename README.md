@@ -2,7 +2,7 @@
 
 OCaml implementation of Luby transform code
 
-[API documentation](http://darrenldl.github.io/ocaml-lt-code/)
+[API documentation](https://darrenldl.github.io/ocaml-lt-code/)
 
 ## Technical details
 
