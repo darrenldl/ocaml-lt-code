@@ -12,7 +12,7 @@ let setups =
     (* ~encode_all_upfront ~data_block_count:3000 ~max_redundancy:0.50 *)
     (* ~data_block_size:4000 ~data_loss_rate:0.30 ~rounds (); *)
     make_setup ~systematic:true ~systematic_scaling_factor:2.0
-      ~encode_all_upfront ~data_block_count:1000 ~max_redundancy:0.50
+      ~encode_all_upfront ~data_block_count:2000 ~max_redundancy:0.50
       ~data_block_size ~data_loss_rate:0.25 ~rounds ();
     make_setup ~systematic:true ~systematic_scaling_factor:2.0
       ~encode_all_upfront ~data_block_count:1000 ~max_redundancy:0.50
