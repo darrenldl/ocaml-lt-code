@@ -4,12 +4,12 @@
 #include <caml/mlvalues.h>
 #include <caml/bigarray.h>
 
-CAMLprim void xor_onto_stub (value src_, value onto_) {
+CAMLprim void xor_into_stub (value src_, value into_) {
   int len = Caml_ba_array_val(src_)->dim[0];
   const char* src = (const char*) Caml_ba_data_val(src_);
-  char* onto = (char*) Caml_ba_data_val(onto_);
+  char* into = (char*) Caml_ba_data_val(into_);
   for (int i = 0; i < len; i++) {
-    onto[i] ^= src[i];
+    into[i] ^= src[i];
   }
 }
 

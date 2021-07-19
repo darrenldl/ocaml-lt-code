@@ -38,7 +38,7 @@ let robust_soliton_dist ~k : t =
   Array.iteri (fun i v -> weights.(i) <- t i +. v) weights;
   of_weights weights
 
-let choose_onto ?(offset = 0) (d : t) (arr : int array) : unit =
+let choose_into ?(offset = 0) (d : t) (arr : int array) : unit =
   let aux () =
     let v = Random.float d.total_weight in
     let res =
@@ -61,5 +61,5 @@ let choose_onto ?(offset = 0) (d : t) (arr : int array) : unit =
 
 let choose_n (d : t) n : int array =
   let arr = Array.make n 0 in
-  choose_onto d arr;
+  choose_into d arr;
   arr
