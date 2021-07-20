@@ -1,8 +1,8 @@
 opam-version: "2.0"
 synopsis: "OCaml implementation of Luby transform code"
 description: """
-Luby transform codes are a type of fountain codes, allowing recovery
-from missing data (or erasure).
+Luby transform codes are a type of fountain codes, allowing data recovery
+from data erasure.
 
 This library provides an encoder and decoder for Luby transform code,
 and can operate in systematic or non-systematic mode.
