@@ -13,6 +13,6 @@
  (foreign_stubs
   (language c)
   (names lt_code_stubs)
-  (flags :standard -march=native -std=c11 -fPIC -O3)
+  (flags :standard -O3)
  )
  )
