@@ -1,6 +1,6 @@
 # OCaml-LT-code
 
-OCaml implementation of Luby transform codes
+OCaml implementation of a Luby transform code
 
 [API documentation](https://darrenldl.github.io/ocaml-lt-code/)
 
